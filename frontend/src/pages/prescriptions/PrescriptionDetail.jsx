@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Pill, Printer } from 'lucide-react';
 import { prescriptionService } from '../../services/prescriptionService';
 import { PatientHeader } from '../../components/PatientHeader';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card, CardHeader } from '../../components/ui/Card';
-import { LoadingState, ErrorState } from '../../components/ui/States';
+import { ErrorState } from '../../components/ui/States';
+import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { PrescriptionPrint } from '../../components/print/PrescriptionPrint';
 import { formatDateTime } from '../../utils/format';
 
 export default function PrescriptionDetail() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [prescription, setPrescription] = useState(null);
@@ -27,7 +30,7 @@ export default function PrescriptionDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <LoadingState label="Loading prescription…" />;
+  if (loading) return <SkeletonDetail lines={5} />;
   if (error) return <ErrorState message={error} />;
   if (!prescription) return null;
 
@@ -37,16 +40,16 @@ export default function PrescriptionDetail() {
         onClick={() => navigate('/prescriptions')}
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700"
       >
-        <ArrowLeft className="h-4 w-4" /> Back to prescriptions
+        <ArrowLeft className="h-4 w-4" /> {t('Back to prescriptions')}
       </button>
 
       <PageHeader
-        title={`Prescription · ${prescription.prescriptionNumber}`}
-        subtitle={`Issued ${formatDateTime(prescription.date)} by Dr. ${prescription.doctor}`}
+        title={t('Prescription · {{number}}', { number: prescription.prescriptionNumber })}
+        subtitle={t('Issued {{date}} by Dr. {{doctor}}', { date: formatDateTime(prescription.date), doctor: prescription.doctor })}
         icon={Pill}
         actions={
           <button className="btn-primary" onClick={() => setPrintOpen(true)}>
-            <Printer className="h-4 w-4" /> Print Prescription
+            <Printer className="h-4 w-4" /> {t('Print Prescription')}
           </button>
         }
       />
@@ -55,18 +58,18 @@ export default function PrescriptionDetail() {
 
       <div className="mt-5">
         <Card>
-          <CardHeader title="Medicines" subtitle="Complete the full course as directed" icon={Pill} />
+          <CardHeader title={t('Medicines')} subtitle={t('Complete the full course as directed')} icon={Pill} />
           <div className="overflow-x-auto">
             <table className="w-full min-w-max">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="th">#</th>
-                  <th className="th">Medicine</th>
-                  <th className="th">Dosage</th>
-                  <th className="th">Frequency</th>
-                  <th className="th">Duration</th>
-                  <th className="th">Route</th>
-                  <th className="th">Instructions</th>
+                  <th className="th">{t('Medicine')}</th>
+                  <th className="th">{t('Dosage')}</th>
+                  <th className="th">{t('Frequency')}</th>
+                  <th className="th">{t('Duration')}</th>
+                  <th className="th">{t('Route')}</th>
+                  <th className="th">{t('Instructions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -86,7 +89,7 @@ export default function PrescriptionDetail() {
           </div>
           <div className="flex justify-end gap-8 border-t border-slate-100 px-5 py-4 text-sm">
             <div className="text-right">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Prescribed By</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('Prescribed By')}</p>
               <p className="font-semibold text-slate-800">{prescription.doctor}</p>
             </div>
           </div>

@@ -14,13 +14,17 @@ import { daysAgo, minutesAgo, now } from '../utils/helpers.js';
 const testById = (id) => labTests.find((t) => t.id === id);
 const medByName = (name) => medicines.find((m) => m.name === name);
 
-const mkPatient = ({ fullName, gender, dateOfBirth, phone, address, regAgo }) => ({
+const mkPatient = ({ fullName, gender, dateOfBirth, phone, address, regAgo, emergencyContactName = '', emergencyContactPhone = '', relationshipToPatient = '', allergies = [] }) => ({
   id: nextPatientId(),
   fullName,
   gender,
   dateOfBirth,
   phone,
   address,
+  emergencyContactName,
+  emergencyContactPhone,
+  relationshipToPatient,
+  allergies,
   registrationDate: daysAgo(regAgo, 8, 15),
   createdAt: daysAgo(regAgo, 8, 15),
 });
@@ -175,17 +179,17 @@ export function buildSeed() {
   resetCounters();
   // ---------------------------------------------------------------- patients
   const P = {
-    abebe: mkPatient({ fullName: 'Abebe Kebede', gender: 'Male', dateOfBirth: '1985-04-12', phone: '0911 234 567', address: 'Bole, Addis Ababa', regAgo: 200 }),
+    abebe: mkPatient({ fullName: 'Abebe Kebede', gender: 'Male', dateOfBirth: '1985-04-12', phone: '0911 234 567', address: 'Bole, Addis Ababa', regAgo: 200, emergencyContactName: 'Sara Kebede', emergencyContactPhone: '0911 987 654', relationshipToPatient: 'Wife', allergies: [{ category: 'Drug', name: 'Penicillin', severity: 'Moderate', reaction: 'Skin rash' }] }),
     mulu: mkPatient({ fullName: 'Mulu Alemayehu', gender: 'Female', dateOfBirth: '1978-11-03', phone: '0912 345 678', address: 'Piassa, Addis Ababa', regAgo: 90 }),
-    girma: mkPatient({ fullName: 'Girma Bekele', gender: 'Male', dateOfBirth: '1992-07-19', phone: '0913 456 789', address: 'Merkato, Addis Ababa', regAgo: 60 }),
+    girma: mkPatient({ fullName: 'Girma Bekele', gender: 'Male', dateOfBirth: '1992-07-19', phone: '0913 456 789', address: 'Merkato, Addis Ababa', regAgo: 60, emergencyContactName: 'Hana Bekele', emergencyContactPhone: '0912 223 344', relationshipToPatient: 'Sister', allergies: [{ category: 'Food', name: 'Nuts', severity: 'Severe', reaction: 'Swelling of lips' }, { category: 'Environmental', name: 'Latex', severity: 'Mild', reaction: 'Skin irritation' }] }),
     yonas: mkPatient({ fullName: 'Yonas Haile', gender: 'Male', dateOfBirth: '1989-02-14', phone: '0915 678 901', address: 'CMC, Addis Ababa', regAgo: 120 }),
-    tigist: mkPatient({ fullName: 'Tigist Worku', gender: 'Female', dateOfBirth: '1995-06-30', phone: '0916 789 012', address: 'Bole Medhanealem, Addis Ababa', regAgo: 75 }),
-    dawit: mkPatient({ fullName: 'Dawit Lemma', gender: 'Male', dateOfBirth: '2012-05-08', phone: '0917 890 123', address: 'Nifas Silk, Addis Ababa', regAgo: 5 }),
+    tigist: mkPatient({ fullName: 'Tigist Worku', gender: 'Female', dateOfBirth: '1995-06-30', phone: '0916 789 012', address: 'Bole Medhanealem, Addis Ababa', regAgo: 75, emergencyContactName: 'Worku Tadesse', emergencyContactPhone: '0916 121 212', relationshipToPatient: 'Father', allergies: [{ category: 'Food', name: 'Shellfish', severity: 'Life-threatening', reaction: 'Anaphylaxis' }] }),
+    dawit: mkPatient({ fullName: 'Dawit Lemma', gender: 'Male', dateOfBirth: '2012-05-08', phone: '0917 890 123', address: 'Nifas Silk, Addis Ababa', regAgo: 5, emergencyContactName: 'Aster Lemma', emergencyContactPhone: '0917 343 434', relationshipToPatient: 'Mother' }),
     ruth: mkPatient({ fullName: 'Ruth Solomon', gender: 'Female', dateOfBirth: '1982-12-25', phone: '0918 901 234', address: 'Gergi, Addis Ababa', regAgo: 100 }),
-    berhanu: mkPatient({ fullName: 'Berhanu Girma', gender: 'Male', dateOfBirth: '1969-03-01', phone: '0919 012 345', address: 'Kality, Addis Ababa', regAgo: 130 }),
-    sara: mkPatient({ fullName: 'Sara Mohammed', gender: 'Female', dateOfBirth: '1998-08-17', phone: '0920 123 456', address: 'Megenagna, Addis Ababa', regAgo: 55 }),
+    berhanu: mkPatient({ fullName: 'Berhanu Girma', gender: 'Male', dateOfBirth: '1969-03-01', phone: '0919 012 345', address: 'Kality, Addis Ababa', regAgo: 130, allergies: [{ category: 'Drug', name: 'Sulfa drugs', severity: 'Moderate', reaction: 'Skin rash, fever' }] }),
+    sara: mkPatient({ fullName: 'Sara Mohammed', gender: 'Female', dateOfBirth: '1998-08-17', phone: '0920 123 456', address: 'Megenagna, Addis Ababa', regAgo: 55, allergies: [{ category: 'Drug', name: 'Aspirin', severity: 'Mild', reaction: 'Hives' }, { category: 'Environmental', name: 'Pollen', severity: 'Mild', reaction: 'Sneezing, itchy eyes' }] }),
     tesfaye: mkPatient({ fullName: 'Tesfaye Gizaw', gender: 'Male', dateOfBirth: '1975-10-05', phone: '0921 234 567', address: 'Yeka, Addis Ababa', regAgo: 160 }),
-    hana: mkPatient({ fullName: 'Hana Bekele', gender: 'Female', dateOfBirth: '2005-04-22', phone: '0922 345 678', address: 'Bole Bulbula, Addis Ababa', regAgo: 3 }),
+    hana: mkPatient({ fullName: 'Hana Bekele', gender: 'Female', dateOfBirth: '2005-04-22', phone: '0922 345 678', address: 'Bole Bulbula, Addis Ababa', regAgo: 3, emergencyContactName: 'Girma Bekele', emergencyContactPhone: '0922 565 656', relationshipToPatient: 'Brother' }),
     kidane: mkPatient({ fullName: 'Kidane Asfaw', gender: 'Male', dateOfBirth: '1988-09-11', phone: '0923 456 789', address: 'Ayer Tena, Addis Ababa', regAgo: 80 }),
     bethlehem: mkPatient({ fullName: 'Bethlehem Desta', gender: 'Female', dateOfBirth: '1993-01-29', phone: '0924 567 890', address: 'Summit, Addis Ababa', regAgo: 40 }),
   };

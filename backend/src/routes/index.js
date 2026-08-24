@@ -11,7 +11,9 @@ import prescriptionRoutes from './prescriptions.js';
 import reportRoutes from './reports.js';
 import dashboardRoutes from './dashboard.js';
 import catalogRoutes from './catalog.js';
+import adminRoutes from './admin.js';
 import devRoutes from './dev.js';
+import demoRoutes from './demo.js';
 
 const router = Router();
 
@@ -26,7 +28,10 @@ router.use('/procedures', procedureRoutes);
 router.use('/prescriptions', prescriptionRoutes);
 router.use('/reports', reportRoutes);
 router.use('/dashboard', dashboardRoutes);
-router.use('/', catalogRoutes);
+router.use('/admin', adminRoutes);
 router.use('/dev', devRoutes);
+router.use('/demo', demoRoutes);
+// Catalog is mounted at the root with its own auth middleware, so it must stay last.
+router.use('/', catalogRoutes);
 
 export default router;

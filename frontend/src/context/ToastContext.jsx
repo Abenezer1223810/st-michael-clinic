@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { i18n } from '../i18n';
 
 const ToastContext = createContext(null);
 
@@ -44,8 +45,8 @@ export function ToastProvider({ children }) {
             ) : (
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
             )}
-            <span className="flex-1">{t.message}</span>
-            <button onClick={() => remove(t.id)} className="shrink-0 text-slate-400 hover:text-slate-600">
+            <span className="flex-1">{typeof t.message === 'string' && t.message ? i18n.t(t.message) : t.message}</span>
+            <button onClick={() => remove(t.id)} aria-label={i18n.t('Close')} className="shrink-0 text-slate-400 hover:text-slate-600">
               <X className="h-4 w-4" />
             </button>
           </div>

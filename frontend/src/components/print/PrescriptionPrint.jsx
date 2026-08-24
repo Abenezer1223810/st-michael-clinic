@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import { formatDate } from '../../utils/format';
 import { PrintShell, ClinicHeader, PrintFieldGrid } from './PrintShell';
 
 export function PrescriptionPrint({ prescription, onClose }) {
+  const { t } = useTranslation();
   const patient = prescription?.patient || {
     fullName: prescription?.patientName,
     id: prescription?.patientId,
@@ -27,12 +29,12 @@ export function PrescriptionPrint({ prescription, onClose }) {
         <thead>
           <tr className="bg-brand-50 text-left">
             <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">#</th>
-            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Medicine</th>
-            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Dosage</th>
-            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Frequency</th>
-            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Duration</th>
-            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Route</th>
-            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Instructions</th>
+            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">{t('Medicine')}</th>
+            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">{t('Dosage')}</th>
+            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">{t('Frequency')}</th>
+            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">{t('Duration')}</th>
+            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">{t('Route')}</th>
+            <th className="border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">{t('Instructions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -52,10 +54,10 @@ export function PrescriptionPrint({ prescription, onClose }) {
 
       <div className="mt-8 flex items-end justify-between">
         <p className="max-w-sm text-xs italic text-slate-400">
-          Please complete the full course of medication as directed by your doctor.
+          {t('Please complete the full course of medication as directed by your doctor.')}
         </p>
         <div className="text-right">
-          <p className="text-xs font-semibold text-slate-500">Prescribed By</p>
+          <p className="text-xs font-semibold text-slate-500">{t('Prescribed By')}</p>
           <p className="mt-4 text-sm font-semibold text-slate-800">{prescription?.doctor || '—'}</p>
           <p className="text-xs text-slate-400">{formatDate(prescription?.date)}</p>
         </div>

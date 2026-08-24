@@ -6,36 +6,187 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  html.dark {
+    color-scheme: dark;
   }
   body {
-    @apply bg-slate-100 text-slate-800;
+    @apply bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100;
   }
+  /* Global dark-mode surface/typography remap for pages and components
+     that use raw Tailwind utilities. Explicit `dark:` variants (where present)
+     take the same values, so they stay visually consistent. */
+  html.dark .bg-white { background-color: #0f172a; }
+  html.dark .bg-slate-50 { background-color: #1e293b; }
+  html.dark .bg-slate-100 { background-color: #1e293b; }
+  html.dark .bg-slate-200 { background-color: #334155; }
+  html.dark .text-slate-800 { color: #f1f5f9; }
+  html.dark .text-slate-700 { color: #e2e8f0; }
+  html.dark .text-slate-600 { color: #cbd5e1; }
+  html.dark .text-slate-500 { color: #94a3b8; }
+  html.dark .text-slate-400 { color: #64748b; }
+  html.dark .text-slate-300 { color: #64748b; }
+  html.dark .border-slate-200 { border-color: #334155; }
+  html.dark .border-slate-100 { border-color: #1e293b; }
+  html.dark .divide-slate-100 { border-color: #1e293b; }
+  html.dark .divide-slate-200 { border-color: #334155; }
+  /* Printable documents must always render as light hospital documents */
+  html.dark #print-area,
+  html.dark #print-area * {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #e2e8f0 !important;
+  }
+  /* High contrast mode: stronger borders and darker/lighter muted text */
+  html.high-contrast .border-slate-200 { border-color: #475569; }
+  html.high-contrast .border-slate-100 { border-color: #94a3b8; }
+  html.high-contrast .divide-slate-100 { border-color: #94a3b8; }
+  html.high-contrast .divide-slate-200 { border-color: #475569; }
+  html.high-contrast .text-slate-400 { color: #475569; }
+  html.high-contrast .text-slate-500 { color: #1e293b; }
+  html.high-contrast .text-slate-300 { color: #1e293b; }
+  html.high-contrast.dark .border-slate-700 { border-color: #94a3b8; }
+  html.high-contrast.dark .border-slate-800 { border-color: #64748b; }
+  html.high-contrast.dark .bg-slate-800 { background-color: #0f172a; }
+  html.high-contrast.dark .text-slate-400 { color: #cbd5e1; }
+  html.high-contrast.dark .text-slate-500 { color: #e2e8f0; }
+  html.high-contrast.dark .text-slate-300 { color: #f1f5f9; }
 }
 
 @layer components {
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500;
+    @apply w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-400 focus:bg-white focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-500 dark:focus:bg-slate-800 disabled:dark:bg-slate-800 disabled:dark:text-slate-500;
   }
   .label {
-    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500;
+    @apply mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-cyan-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:from-brand-600 hover:to-cyan-700 hover:shadow-xl hover:shadow-brand-500/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-brand-300 hover:bg-brand-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-brand-500 dark:hover:bg-slate-800;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-500/25 transition hover:from-rose-600 hover:to-rose-700 hover:shadow-xl hover:shadow-rose-500/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-card;
+    @apply rounded-2xl border border-slate-200 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900;
   }
   .th {
-    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500;
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400;
   }
   .td {
-    @apply px-4 py-3 text-sm text-slate-700;
+    @apply px-4 py-3 text-sm text-slate-700 dark:text-slate-300;
+  }
+}
+
+/* Custom Animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes float-delayed {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-float-delayed {
+    animation: float-delayed 5s ease-in-out infinite;
+    animation-delay: 1s;
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 1s ease-out;
+  }
+  
+  .animate-fade-in-up {
+    animation: fade-in-up 1s ease-out;
+    animation-delay: 0.5s;
+    animation-fill-mode: both;
+  }
+  
+  .animate-spin-slow {
+    animation: spin-slow 20s linear infinite;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse-slow 4s ease-in-out infinite;
+  }
+  
+  .animate-bounce-slow {
+    animation: bounce-slow 3s ease-in-out infinite;
+  }
+  
+  .animation-delay-1000 {
+    animation-delay: 1s;
+  }
+  
+  .animation-delay-2000 {
+    animation-delay: 2s;
   }
 }
 

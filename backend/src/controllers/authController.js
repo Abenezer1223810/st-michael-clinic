@@ -12,6 +12,9 @@ export const login = (req, res) => {
   if (!user || user.password !== password) {
     return res.status(401).json({ message: 'Invalid username or password.' });
   }
+  if (user.banned) {
+    return res.status(403).json({ message: 'This account has been suspended. Contact your administrator.' });
+  }
   const token = signToken({ id: user.id, role: user.role });
   const { password: _pw, ...safe } = user;
   res.json({ token, user: safe });

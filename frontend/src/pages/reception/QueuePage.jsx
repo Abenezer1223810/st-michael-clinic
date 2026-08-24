@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ListOrdered, UserPlus } from 'lucide-react';
 import { queueService } from '../../services/queueService';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -18,6 +19,7 @@ const STATUSES = [
 ];
 
 export default function QueuePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const toast = useToast();
   const [filter, setFilter] = useState('');
@@ -43,7 +45,7 @@ export default function QueuePage() {
   const updateStatus = async (entry, status) => {
     try {
       const { message } = await queueService.updateStatus(entry.id, status);
-      toast.success(message || 'Queue status updated.');
+      toast.success(message || t('Queue status updated.'));
       load();
     } catch (e) {
       toast.error(e.message);
@@ -51,25 +53,25 @@ export default function QueuePage() {
   };
 
   const nextStatus = (entry) => {
-    if (entry.status === 'waiting') return { to: 'called', label: 'Call' };
-    if (entry.status === 'called') return { to: 'in_consultation', label: 'Start' };
-    if (entry.status === 'in_consultation') return { to: 'completed', label: 'Complete' };
+    if (entry.status === 'waiting') return { to: 'called', label: t('Call') };
+    if (entry.status === 'called') return { to: 'in_consultation', label: t('Start') };
+    if (entry.status === 'in_consultation') return { to: 'completed', label: t('Complete') };
     return null;
   };
 
   const columns = [
     {
       key: 'queueNumber',
-      header: 'Queue No.',
+      header: t('Queue No.'),
       render: (q) => <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700">#{q.queueNumber}</span>,
     },
-    { key: 'patientName', header: 'Patient Name', render: (q) => <span className="font-medium text-slate-800">{q.patientName}</span> },
-    { key: 'patientId', header: 'Patient ID', render: (q) => <span className="text-slate-500">{q.patientId}</span> },
-    { key: 'visitNumber', header: 'Visit', render: (q) => <span className="text-slate-500">{q.visitNumber}</span> },
-    { key: 'service', header: 'Service', render: (q) => <span>{q.service}</span> },
+    { key: 'patientName', header: t('Patient Name'), render: (q) => <span className="font-medium text-slate-800">{q.patientName}</span> },
+    { key: 'patientId', header: t('Patient ID'), render: (q) => <span className="text-slate-500">{q.patientId}</span> },
+    { key: 'visitNumber', header: t('Visit'), render: (q) => <span className="text-slate-500">{q.visitNumber}</span> },
+    { key: 'service', header: t('Service'), render: (q) => <span>{t(q.service)}</span> },
     {
       key: 'time',
-      header: 'Time',
+      header: t('Time'),
       render: (q) => (
         <span className="whitespace-nowrap text-slate-500">
           {formatTime(q.time)}
@@ -77,10 +79,10 @@ export default function QueuePage() {
         </span>
       ),
     },
-    { key: 'status', header: 'Status', render: (q) => <StatusBadge status={q.status} /> },
+    { key: 'status', header: t('Status'), render: (q) => <StatusBadge status={q.status} /> },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('Actions'),
       render: (q) => {
         const next = nextStatus(q);
         return (
@@ -93,7 +95,7 @@ export default function QueuePage() {
               <span className="text-xs text-slate-300">—</span>
             )}
             <Link to={`/opd/consultation/${q.visitId}`} className="text-xs font-medium text-brand-700 hover:underline">
-              Open
+              {t('Open')}
             </Link>
           </div>
         );
@@ -104,12 +106,12 @@ export default function QueuePage() {
   return (
     <div>
       <PageHeader
-        title="Queue Management"
-        subtitle="Today's queue for all services"
+        title={t('Queue Management')}
+        subtitle={t("Today's queue for all services")}
         icon={ListOrdered}
         actions={
           <button className="btn-primary" onClick={() => navigate('/patients')}>
-            <UserPlus className="h-4 w-4" /> Add Patient
+            <UserPlus className="h-4 w-4" /> {t('Add Patient')}
           </button>
         }
       />
@@ -120,10 +122,10 @@ export default function QueuePage() {
             key={s.key}
             onClick={() => setFilter(s.key)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-              filter === s.key ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+              filter === s.key ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-800'
             }`}
           >
-            {s.label}
+            {t(s.label)}
           </button>
         ))}
       </div>
@@ -135,8 +137,8 @@ export default function QueuePage() {
           loading={loading}
           error={error}
           onRetry={load}
-          emptyTitle="Queue is empty"
-          emptyDescription="Patients added to the queue will appear here."
+          emptyTitle={t('Queue is empty')}
+          emptyDescription={t('Patients added to the queue will appear here.')}
           onRowClick={(q) => navigate(`/patients/${q.patientId}`)}
         />
       </Card>

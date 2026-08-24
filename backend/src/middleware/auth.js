@@ -12,6 +12,9 @@ export function requireAuth(req, res, next) {
   if (!user) {
     return res.status(401).json({ message: 'User account not found.' });
   }
+  if (user.banned) {
+    return res.status(401).json({ message: 'This account has been suspended. Contact your administrator.' });
+  }
   req.user = user;
   next();
 }

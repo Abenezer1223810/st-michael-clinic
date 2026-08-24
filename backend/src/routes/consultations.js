@@ -6,11 +6,11 @@ import {
   updateConsultation,
   completeConsultation,
 } from '../controllers/opdController.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth, requireRole('doctor', 'administrator'));
 router.get('/patient/:patientId', listConsultationsByPatient);
 router.get('/:id', getConsultation);
 router.post('/', createConsultation);

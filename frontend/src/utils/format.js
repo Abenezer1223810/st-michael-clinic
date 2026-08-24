@@ -1,13 +1,19 @@
+import i18n from '../i18n';
+
+function locale() {
+  return i18n.language === 'am' ? 'am-ET' : 'en-GB';
+}
+
 export function formatDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(locale(), { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export function formatDateTime(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
-  return d.toLocaleString('en-GB', {
+  return d.toLocaleString(locale(), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',

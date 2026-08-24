@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Users,
   UserPlus,
@@ -16,8 +17,10 @@ import {
 } from 'lucide-react';
 import { reportService } from '../services/reportService';
 import { StatCard } from '../components/ui/StatCard';
+import { PageHeader } from '../components/ui/PageHeader';
 import { Card, CardHeader } from '../components/ui/Card';
-import { LoadingState, ErrorState } from '../components/ui/States';
+import { ErrorState } from '../components/ui/States';
+import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -36,6 +39,7 @@ import {
 const PIE_COLORS = ['#f59e0b', '#0d9488', '#10b981'];
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const toast = useToast();
   const [data, setData] = useState(null);
@@ -49,7 +53,7 @@ export default function Dashboard() {
   }, []);
 
   if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
-  if (!data) return <LoadingState label="Loading clinic dashboard…" />;
+  if (!data) return <DashboardSkeleton />;
 
   const s = data.stats;
 
@@ -71,6 +75,7 @@ export default function Dashboard() {
       ? [
           { label: 'Lab Worklist', to: '/laboratory', icon: FlaskConical },
           { label: 'Requests', to: '/laboratory/requests', icon: ClipboardList },
+          { label: 'Patients', to: '/patients', icon: Users },
         ]
       : user.role === 'procedure'
       ? [
@@ -83,57 +88,61 @@ export default function Dashboard() {
           { label: 'System', to: '/admin/system', icon: ClipboardList },
         ];
 
+  const greetingKey = new Date().getHours() < 12 ? 'Good morning' : 'Good afternoon';
+
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-2">
-        <h2 className="text-lg font-bold text-slate-800">Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {user.name.split(' ')[0]}.</h2>
-        <p className="text-sm text-slate-500">Here is an overview of clinic activity.</p>
+      <PageHeader
+        title={t('{{greeting}}, {{name}}.', { greeting: t(greetingKey), name: user.name.split(' ')[0] })}
+        subtitle={t('Here is an overview of clinic activity.')}
+        icon={Activity}
+        image="https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=1600&q=80"
+      />
+
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <StatCard icon={Users} label={t('Total Patients')} value={s.totalPatients} tone="brand" />
+        <StatCard icon={UserPlus} label={t('New Patients Today')} value={s.newPatientsToday} tone="sky" />
+        <StatCard icon={UserCheck} label={t('Returning Patients')} value={s.returningPatients} tone="violet" />
+        <StatCard icon={Clock} label={t('Waiting in Queue')} value={s.waitingPatients} tone="amber" />
+        <StatCard icon={Stethoscope} label={t('OPD Consultations Today')} value={s.opdConsultations} tone="emerald" />
       </div>
 
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        <StatCard icon={Users} label="Total Patients" value={s.totalPatients} tone="brand" />
-        <StatCard icon={UserPlus} label="New Patients Today" value={s.newPatientsToday} tone="sky" />
-        <StatCard icon={UserCheck} label="Returning Patients" value={s.returningPatients} tone="violet" />
-        <StatCard icon={Clock} label="Waiting in Queue" value={s.waitingPatients} tone="amber" />
-        <StatCard icon={Stethoscope} label="OPD Consultations Today" value={s.opdConsultations} tone="emerald" />
-      </div>
-
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        <StatCard icon={FlaskConical} label="Lab Requests" value={s.laboratoryRequests} tone="sky" />
-        <StatCard icon={ClipboardList} label="Pending Lab Tests" value={s.pendingLaboratoryTests} tone="amber" />
-        <StatCard icon={CheckCircle2} label="Completed Results" value={s.completedResults} tone="emerald" />
-        <StatCard icon={Syringe} label="Procedures" value={s.procedures} tone="rose" />
-        <StatCard icon={Pill} label="Prescriptions" value={s.prescriptions} tone="violet" />
+        <StatCard icon={FlaskConical} label={t('Lab Requests')} value={s.laboratoryRequests} tone="sky" />
+        <StatCard icon={ClipboardList} label={t('Pending Lab Tests')} value={s.pendingLaboratoryTests} tone="amber" />
+        <StatCard icon={CheckCircle2} label={t('Completed Results')} value={s.completedResults} tone="emerald" />
+        <StatCard icon={Syringe} label={t('Procedures')} value={s.procedures} tone="rose" />
+        <StatCard icon={Pill} label={t('Prescriptions')} value={s.prescriptions} tone="violet" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="Clinic Activity — Last 7 Days" subtitle="Patients, consultations and laboratory requests per day" icon={Activity} />
+          <CardHeader title={t('Clinic Activity — Last 7 Days')} subtitle={t('Patients, consultations and laboratory requests per day')} icon={Activity} />
           <div className="h-72 px-4 py-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.last7Days} barSize={18}>
-                <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={28} />
-                <Tooltip cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="patients" name="Patients" fill="#0d9488" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="consultations" name="Consultations" fill="#38bdf8" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="laboratory" name="Lab Requests" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip cursor={{ fill: 'rgba(148,163,184,0.08)' }} contentStyle={{ borderRadius: 12, borderColor: '#e2e8f0' }} />
+                <Legend wrapperStyle={{ fontSize: 12, color: '#64748b' }} />
+                <Bar dataKey="patients" name={t('Patients')} fill="#0d9488" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="consultations" name={t('Consultations')} fill="#38bdf8" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="laboratory" name={t('Lab Requests')} fill="#f59e0b" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Queue Status Today" icon={ClipboardList} />
+          <CardHeader title={t('Queue Status Today')} icon={ClipboardList} />
           <div className="h-56 px-4 py-2">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={[
-                    { name: 'Waiting', value: data.queueByStatus.waiting },
-                    { name: 'In Consultation', value: data.queueByStatus.in_consultation },
-                    { name: 'Completed', value: data.queueByStatus.completed },
+                    { name: t('Waiting'), value: data.queueByStatus.waiting },
+                    { name: t('In Consultation'), value: data.queueByStatus.in_consultation },
+                    { name: t('Completed'), value: data.queueByStatus.completed },
                   ]}
                   dataKey="value"
                   nameKey="name"
@@ -145,19 +154,19 @@ export default function Dashboard() {
                     <Cell key={i} fill={c} />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Tooltip contentStyle={{ borderRadius: 12, borderColor: '#e2e8f0' }} />
+                <Legend wrapperStyle={{ fontSize: 12, color: '#64748b' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
           <div className="flex items-center justify-center gap-2 px-4 pb-4 text-xs text-slate-500">
-            <Clock className="h-3.5 w-3.5" /> {s.visitsToday} visits registered today
+            <Clock className="h-3.5 w-3.5" /> {t('{{count}} visits registered today', { count: s.visitsToday })}
           </div>
         </Card>
       </div>
 
       <Card className="mt-4">
-        <CardHeader title="Quick Actions" subtitle="Jump to your most common tasks" />
+        <CardHeader title={t('Quick Actions')} subtitle={t('Jump to your most common tasks')} />
         <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-4">
           {quickActions.map((a) => (
             <Link
@@ -166,7 +175,7 @@ export default function Dashboard() {
               className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 p-4 transition hover:border-brand-400 hover:bg-brand-50/50"
             >
               <a.icon className="h-5 w-5 text-brand-600" />
-              <span className="text-sm font-medium text-slate-700">{a.label}</span>
+              <span className="text-sm font-medium text-slate-700">{t(a.label)}</span>
             </Link>
           ))}
         </div>

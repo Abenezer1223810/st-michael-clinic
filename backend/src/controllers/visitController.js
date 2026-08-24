@@ -42,7 +42,7 @@ export const createVisit = (req, res) => {
   if (!service) return res.status(400).json({ message: 'Department / service is required.' });
 
   const patient = db.patients.find((p) => p.id === patientId);
-  if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+  if (!patient) return res.status(404).json({ message: 'Patient ID not found. Please check the ID and try again.' });
 
   const num = nextVisitNumber();
   const visit = {

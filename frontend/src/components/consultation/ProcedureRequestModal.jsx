@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Syringe } from 'lucide-react';
 import { procedureService } from '../../services/procedureService';
 import { catalogService } from '../../services/catalogService';
@@ -8,6 +9,7 @@ import { Field } from '../ui/Field';
 import { Spinner } from '../ui/States';
 
 export function ProcedureRequestModal({ open, onClose, visitId, onRequested }) {
+  const { t } = useTranslation();
   const toast = useToast();
   const [types, setTypes] = useState([]);
   const [type, setType] = useState('');
@@ -34,13 +36,13 @@ export function ProcedureRequestModal({ open, onClose, visitId, onRequested }) {
 
   const handleSubmit = async () => {
     if (!type) {
-      setError('Select a procedure type.');
+      setError(t('Select a procedure type.'));
       return;
     }
     setSaving(true);
     try {
       const { message } = await procedureService.create(visitId, type, notes.trim());
-      toast.success(message || 'Procedure request created.');
+      toast.success(message || t('Procedure request created.'));
       onRequested?.();
       onClose();
     } catch (e) {
@@ -55,16 +57,16 @@ export function ProcedureRequestModal({ open, onClose, visitId, onRequested }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Request Procedure / Injection"
-      subtitle="Send a procedure request to the Procedure Room"
+      title={t('Request Procedure / Injection')}
+      subtitle={t('Send a procedure request to the Procedure Room')}
       icon={Syringe}
       footer={
         <>
           <button className="btn-secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button className="btn-primary" onClick={handleSubmit} disabled={saving || loading}>
-            {saving ? <Spinner /> : 'Request Procedure'}
+            {saving ? <Spinner /> : t('Request Procedure')}
           </button>
         </>
       }
@@ -74,22 +76,22 @@ export function ProcedureRequestModal({ open, onClose, visitId, onRequested }) {
           <Spinner className="mx-auto my-6 h-6 w-6 text-brand-500" />
         ) : (
           <>
-            <Field label="Procedure Type" required>
+            <Field label={t('Procedure Type')} required>
               <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
-                {types.map((t) => (
-                  <option key={t.id} value={t.name}>
-                    {t.name}
+                {types.map((pt) => (
+                  <option key={pt.id} value={pt.name}>
+                    {t(pt.name)}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Notes / Instructions">
+            <Field label={t('Notes / Instructions')}>
               <textarea
                 className="input"
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Diclofenac 75mg IM for fever"
+                placeholder={t('e.g. Diclofenac 75mg IM for fever')}
               />
             </Field>
           </>

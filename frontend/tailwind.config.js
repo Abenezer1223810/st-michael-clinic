@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
@@ -21,6 +22,9 @@ export default {
       fontFamily: {
         sans: [
           'Inter',
+          'Noto Sans Ethiopic',
+          'Nyala',
+          'Ebrima',
           'system-ui',
           '-apple-system',
           'Segoe UI',

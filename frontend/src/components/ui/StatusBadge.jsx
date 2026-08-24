@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 const tones = {
   success: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
   warning: 'bg-amber-50 text-amber-700 ring-amber-600/20',
@@ -33,12 +35,13 @@ function titleCase(value) {
 }
 
 export function StatusBadge({ status, tone, children }) {
-  const t = tone || STATUS_MAP[String(status || '').toLowerCase()] || 'neutral';
+  const { t } = useTranslation();
+  const t2 = tone || STATUS_MAP[String(status || '').toLowerCase()] || 'neutral';
   return (
     <span
-      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${tones[t]}`}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${tones[t2]}`}
     >
-      {children || titleCase(status)}
+      {children || t(titleCase(status))}
     </span>
   );
 }

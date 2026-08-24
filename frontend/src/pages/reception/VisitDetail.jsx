@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   CalendarDays,
@@ -17,11 +18,13 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { LoadingState, ErrorState, EmptyState } from '../../components/ui/States';
+import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { useToast } from '../../context/ToastContext';
 import { formatDateTime } from '../../utils/format';
 import { PatientVisitPrint } from '../../components/print/PatientVisitPrint';
 
 export default function VisitDetail() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
@@ -45,7 +48,7 @@ export default function VisitDetail() {
   const addToQueue = async () => {
     try {
       const { message } = await queueService.add(id);
-      toast.success(message || 'Patient added to OPD queue.');
+      toast.success(message || t('Patient added to OPD queue.'));
       load();
     } catch (e) {
       toast.error(e.message);
@@ -53,16 +56,16 @@ export default function VisitDetail() {
   };
 
   if (error) return <ErrorState message={error} onRetry={load} />;
-  if (!data) return <LoadingState label="Loading visit…" />;
+  if (!data) return <SkeletonDetail lines={6} />;
 
   const { visit, queueEntry, consultation, labRequests, procedures, prescriptions } = data;
 
   const summary = [
-    { label: 'Visit Number', value: visit.visitNumber, to: null },
-    { label: 'Date & Time', value: formatDateTime(visit.date), to: null },
-    { label: 'Service', value: visit.service, to: null },
-    { label: 'Reason', value: visit.reason || '—', to: null },
-    { label: 'Status', value: visit.status, to: null, badge: true },
+    { label: t('Visit Number'), value: visit.visitNumber, to: null },
+    { label: t('Date & Time'), value: formatDateTime(visit.date), to: null },
+    { label: t('Service'), value: t(visit.service), to: null },
+    { label: t('Reason'), value: visit.reason || '—', to: null },
+    { label: t('Status'), value: visit.status, to: null, badge: true },
   ];
 
   return (
@@ -71,12 +74,12 @@ export default function VisitDetail() {
         onClick={() => navigate(-1)}
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700"
       >
-        <ArrowLeft className="h-4 w-4" /> Back
+        <ArrowLeft className="h-4 w-4" /> {t('Back')}
       </button>
 
       <PageHeader
-        title={`Visit ${visit.visitNumber}`}
-        subtitle="Visit details and related clinical activity"
+        title={t('Visit {{number}}', { number: visit.visitNumber })}
+        subtitle={t('Visit details and related clinical activity')}
         icon={CalendarDays}
         actions={
           <>
@@ -84,16 +87,16 @@ export default function VisitDetail() {
               <PatientVisitPrint visit={visit} patient={visit.patient} onClose={() => setPrintOpen(false)} />
             )}
             <button className="btn-secondary" onClick={() => setPrintOpen(true)}>
-              <Printer className="h-4 w-4" /> Print Info
+              <Printer className="h-4 w-4" /> {t('Print Info')}
             </button>
             {visit.status === 'active' && !queueEntry && (
               <button className="btn-primary" onClick={addToQueue}>
-                <ListOrdered className="h-4 w-4" /> Add to Queue
+                <ListOrdered className="h-4 w-4" /> {t('Add to Queue')}
               </button>
             )}
             {visit.status === 'active' && (
               <Link to={`/opd/consultation/${visit.id}`} className="btn-primary">
-                <Stethoscope className="h-4 w-4" /> Open Consultation
+                <Stethoscope className="h-4 w-4" /> {t('Open Consultation')}
               </Link>
             )}
           </>
@@ -105,7 +108,7 @@ export default function VisitDetail() {
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <div className="space-y-5">
           <Card>
-            <CardHeader title="Visit Information" icon={CalendarDays} />
+            <CardHeader title={t('Visit Information')} icon={CalendarDays} />
             <div className="px-5 py-2">
               {summary.map((s) => (
                 <div key={s.label} className="flex items-center justify-between gap-4 border-b border-slate-100 py-2 text-sm last:border-0">
@@ -121,31 +124,31 @@ export default function VisitDetail() {
           </Card>
 
           <Card>
-            <CardHeader title="Queue" icon={ListOrdered} />
+            <CardHeader title={t('Queue')} icon={ListOrdered} />
             <div className="px-5 py-2">
               {queueEntry ? (
                 <>
                   <div className="flex items-center justify-between border-b border-slate-100 py-2 text-sm">
-                    <span className="text-slate-500">Queue number</span>
+                    <span className="text-slate-500">{t('Queue number')}</span>
                     <span className="text-lg font-bold text-brand-700">#{queueEntry.queueNumber}</span>
                   </div>
                   <div className="flex items-center justify-between border-b border-slate-100 py-2 text-sm">
-                    <span className="text-slate-500">Service</span>
-                    <span className="font-medium">{queueEntry.service}</span>
+                    <span className="text-slate-500">{t('Service')}</span>
+                    <span className="font-medium">{t(queueEntry.service)}</span>
                   </div>
                   <div className="flex items-center justify-between py-2 text-sm">
-                    <span className="text-slate-500">Status</span>
+                    <span className="text-slate-500">{t('Status')}</span>
                     <StatusBadge status={queueEntry.status} />
                   </div>
                 </>
               ) : (
                 <EmptyState
-                  title="Not in queue"
-                  description="This patient has not been added to the queue."
+                  title={t('Not in queue')}
+                  description={t('This patient has not been added to the queue.')}
                   action={
                     visit.status === 'active' ? (
                       <button className="btn-secondary" onClick={addToQueue}>
-                        Add to Queue
+                        {t('Add to Queue')}
                       </button>
                     ) : null
                   }
@@ -157,7 +160,7 @@ export default function VisitDetail() {
 
         <div className="space-y-5 lg:col-span-2">
           <Card>
-            <CardHeader title="Consultation" icon={Stethoscope} />
+            <CardHeader title={t('Consultation')} icon={Stethoscope} />
             {consultation ? (
               <div className="px-5 py-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -168,18 +171,18 @@ export default function VisitDetail() {
                   </div>
                 </div>
                 <div className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-                  <div><span className="text-slate-500">Diagnosis: </span><span className="font-medium">{consultation.diagnosis || '—'}</span></div>
-                  <div><span className="text-slate-500">Treatment: </span>{consultation.treatmentRecommendation || '—'}</div>
+                  <div><span className="text-slate-500">{t('Diagnosis: ') }</span><span className="font-medium">{consultation.diagnosis || '—'}</span></div>
+                  <div><span className="text-slate-500">{t('Treatment: ') }</span>{consultation.treatmentRecommendation || '—'}</div>
                 </div>
               </div>
             ) : (
               <EmptyState
-                title="No consultation yet"
-                description="Open this patient in OPD to start the consultation."
+                title={t('No consultation yet')}
+                description={t('Open this patient in OPD to start the consultation.')}
                 action={
                   visit.status === 'active' ? (
                     <Link to={`/opd/consultation/${visit.id}`} className="btn-primary">
-                      <Stethoscope className="h-4 w-4" /> Start Consultation
+                      <Stethoscope className="h-4 w-4" /> {t('Start Consultation')}
                     </Link>
                   ) : null
                 }
@@ -189,10 +192,10 @@ export default function VisitDetail() {
 
           <div className="grid gap-5 sm:grid-cols-3">
             <Card>
-              <CardHeader title="Laboratory" subtitle={`${labRequests.length} request(s)`} icon={FlaskConical} />
+              <CardHeader title={t('Laboratory')} subtitle={t('{{count}} request(s)', { count: labRequests.length })} icon={FlaskConical} />
               <div className="px-5 py-2">
                 {labRequests.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-slate-400">No lab requests</p>
+                  <p className="py-4 text-center text-sm text-slate-400">{t('No lab requests')}</p>
                 ) : (
                   labRequests.map((r) => (
                     <div key={r.id} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm last:border-0">
@@ -207,10 +210,10 @@ export default function VisitDetail() {
             </Card>
 
             <Card>
-              <CardHeader title="Procedures" subtitle={`${procedures.length} request(s)`} icon={Syringe} />
+              <CardHeader title={t('Procedures')} subtitle={t('{{count}} request(s)', { count: procedures.length })} icon={Syringe} />
               <div className="px-5 py-2">
                 {procedures.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-slate-400">No procedures</p>
+                  <p className="py-4 text-center text-sm text-slate-400">{t('No procedures')}</p>
                 ) : (
                   procedures.map((p) => (
                     <div key={p.id} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm last:border-0">
@@ -225,17 +228,17 @@ export default function VisitDetail() {
             </Card>
 
             <Card>
-              <CardHeader title="Prescriptions" subtitle={`${prescriptions.length} record(s)`} icon={Pill} />
+              <CardHeader title={t('Prescriptions')} subtitle={t('{{count}} record(s)', { count: prescriptions.length })} icon={Pill} />
               <div className="px-5 py-2">
                 {prescriptions.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-slate-400">No prescriptions</p>
+                  <p className="py-4 text-center text-sm text-slate-400">{t('No prescriptions')}</p>
                 ) : (
                   prescriptions.map((rx) => (
                     <div key={rx.id} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm last:border-0">
                       <Link to={`/prescriptions/${rx.id}`} className="font-medium text-brand-700 hover:underline">
                         {rx.prescriptionNumber}
                       </Link>
-                      <span className="text-xs text-slate-400">{rx.medicines.length} item(s)</span>
+                      <span className="text-xs text-slate-400">{t('{{count}} item(s)', { count: rx.medicines.length })}</span>
                     </div>
                   ))
                 )}

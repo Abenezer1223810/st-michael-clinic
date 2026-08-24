@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { visitService } from '../services/visitService';
 import { queueService } from '../services/queueService';
 import { useToast } from '../context/ToastContext';
@@ -9,6 +10,7 @@ import { Spinner } from './ui/States';
 const SERVICES = ['OPD', 'Internal Medicine', 'Pediatrics', 'Gynecology', 'Dermatology'];
 
 export function CreateVisitModal({ open, onClose, patient, onCreated }) {
+  const { t } = useTranslation();
   const toast = useToast();
   const [service, setService] = useState('OPD');
   const [reason, setReason] = useState('');
@@ -27,9 +29,9 @@ export function CreateVisitModal({ open, onClose, patient, onCreated }) {
 
   const handleSubmit = async () => {
     const er = {};
-    if (!patient) er.form = 'Please select a patient first.';
-    if (!service) er.service = 'Select a department / service.';
-    if (!reason.trim()) er.reason = 'A visit reason is helpful for the doctor.';
+    if (!patient) er.form = t('Please select a patient first.');
+    if (!service) er.service = t('Select a department / service.');
+    if (!reason.trim()) er.reason = t('A visit reason is helpful for the doctor.');
     setErrors(er);
     if (Object.keys(er).length) return;
 
@@ -40,19 +42,19 @@ export function CreateVisitModal({ open, onClose, patient, onCreated }) {
         service,
         reason: reason.trim(),
       });
-      toast.success(message || 'Visit created successfully.');
+      toast.success(message ? t(message) : t('Visit created successfully.'));
       if (addToQueue) {
         try {
           const q = await queueService.add(visit.id);
-          toast.success(q.message || 'Patient added to OPD queue.');
+          toast.success(q.message ? t(q.message) : t('Patient added to OPD queue.'));
         } catch (e) {
-          toast.error(e.message);
+          toast.error(e.message ? t(e.message) : e.message);
         }
       }
       onCreated?.(visit);
       onClose();
     } catch (e) {
-      toast.error(e.message);
+      toast.error(e.message ? t(e.message) : e.message);
       setErrors({ form: e.message });
     } finally {
       setSaving(false);
@@ -63,34 +65,36 @@ export function CreateVisitModal({ open, onClose, patient, onCreated }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Create Visit"
-      subtitle={patient ? `${patient.id} · ${patient.fullName}` : 'Select a patient'}
+      title={t('Create Visit')}
+      subtitle={patient ? `${patient.id} · ${patient.fullName}` : t('Select a patient')}
       footer={
         <>
           <button className="btn-secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button className="btn-primary" onClick={handleSubmit} disabled={saving}>
-            {saving ? <Spinner /> : 'Create Visit'}
+            {saving ? <Spinner /> : t('Create Visit')}
           </button>
         </>
       }
     >
       <div className="space-y-4">
-        <Field label="Department / Service" required error={errors.service}>
+        <Field label={t('Department / Service')} required error={errors.service}>
           <select className="input" value={service} onChange={(e) => setService(e.target.value)}>
             {SERVICES.map((s) => (
-              <option key={s}>{s}</option>
+              <option key={s} value={s}>
+                {t(s)}
+              </option>
             ))}
           </select>
         </Field>
-        <Field label="Visit Reason" required error={errors.reason}>
+        <Field label={t('Visit Reason')} required error={errors.reason}>
           <textarea
             className="input"
             rows={2}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="e.g. Fever and headache for 2 days"
+            placeholder={t('e.g. Fever and headache for 2 days')}
           />
         </Field>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
@@ -100,9 +104,9 @@ export function CreateVisitModal({ open, onClose, patient, onCreated }) {
             onChange={(e) => setAddToQueue(e.target.checked)}
             className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
           />
-          Add patient to OPD queue
+          {t('Add patient to OPD queue')}
         </label>
-        {errors.form && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{errors.form}</p>}
+        {errors.form && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{t(errors.form)}</p>}
       </div>
     </Modal>
   );

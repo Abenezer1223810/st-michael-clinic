@@ -1,4 +1,5 @@
 const counters = {
+  user: 0,
   patient: 0,
   visit: 0,
   queue: 0,
@@ -24,6 +25,10 @@ function nextWithPrefix(prefix, width = 4) {
 
 export function nextPatientId() {
   return `PT-${nextWithPrefix('patient')}`;
+}
+
+export function nextUserId() {
+  return `U-${nextWithPrefix('user', 3)}`;
 }
 
 export function nextVisitNumber() {

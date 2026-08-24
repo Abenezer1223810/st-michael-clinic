@@ -4,13 +4,13 @@ import {
   addToQueue,
   updateQueueStatus,
 } from '../controllers/queueController.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
 router.use(requireAuth);
 router.get('/', listQueue);
-router.post('/', addToQueue);
-router.patch('/:id/status', updateQueueStatus);
+router.post('/', requireRole('receptionist', 'administrator'), addToQueue);
+router.patch('/:id/status', requireRole('receptionist', 'administrator'), updateQueueStatus);
 
 export default router;

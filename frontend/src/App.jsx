@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { LoadingState } from './components/ui/States';
@@ -27,16 +28,37 @@ import AdminSystem from './pages/admin/AdminSystem';
 
 function Protected({ children }) {
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useTranslation();
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <LoadingState label="Signing you in…" />
+        <LoadingState label={t('Signing you in…')} />
       </div>
     );
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 }
+
+function AllowedRoles({ roles, children }) {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
+const ROLES = {
+  reception: ['administrator', 'receptionist'],
+  clinicalRead: ['administrator', 'receptionist', 'doctor'],
+  patients: ['administrator', 'receptionist', 'doctor', 'laboratory'],
+  queue: ['administrator', 'receptionist'],
+  doctor: ['administrator', 'doctor'],
+  laboratory: ['administrator', 'laboratory'],
+  labView: ['administrator', 'laboratory', 'doctor'],
+  procedure: ['administrator', 'procedure'],
+  administrator: ['administrator'],
+};
 
 export default function App() {
   return (
@@ -53,32 +75,32 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
 
-        <Route path="patients" element={<PatientList />} />
-        <Route path="patients/new" element={<PatientForm />} />
-        <Route path="patients/:id" element={<PatientProfile />} />
+        <Route path="patients" element={<AllowedRoles roles={ROLES.patients}><PatientList /></AllowedRoles>} />
+        <Route path="patients/new" element={<AllowedRoles roles={ROLES.reception}><PatientForm /></AllowedRoles>} />
+        <Route path="patients/:id" element={<AllowedRoles roles={ROLES.patients}><PatientProfile /></AllowedRoles>} />
 
-        <Route path="reception" element={<ReceptionDashboard />} />
-        <Route path="visits" element={<VisitList />} />
-        <Route path="visits/:id" element={<VisitDetail />} />
-        <Route path="queue" element={<QueuePage />} />
+        <Route path="reception" element={<AllowedRoles roles={ROLES.reception}><ReceptionDashboard /></AllowedRoles>} />
+        <Route path="visits" element={<AllowedRoles roles={ROLES.clinicalRead}><VisitList /></AllowedRoles>} />
+        <Route path="visits/:id" element={<AllowedRoles roles={ROLES.clinicalRead}><VisitDetail /></AllowedRoles>} />
+        <Route path="queue" element={<AllowedRoles roles={ROLES.queue}><QueuePage /></AllowedRoles>} />
 
-        <Route path="opd" element={<OpdQueue />} />
-        <Route path="opd/consultation/:visitId" element={<Consultation />} />
+        <Route path="opd" element={<AllowedRoles roles={ROLES.doctor}><OpdQueue /></AllowedRoles>} />
+        <Route path="opd/consultation/:visitId" element={<AllowedRoles roles={ROLES.doctor}><Consultation /></AllowedRoles>} />
 
-        <Route path="laboratory" element={<LaboratoryDashboard />} />
-        <Route path="laboratory/requests" element={<LabRequests />} />
-        <Route path="laboratory/requests/:id" element={<LabWorklist />} />
+        <Route path="laboratory" element={<AllowedRoles roles={ROLES.laboratory}><LaboratoryDashboard /></AllowedRoles>} />
+        <Route path="laboratory/requests" element={<AllowedRoles roles={ROLES.laboratory}><LabRequests /></AllowedRoles>} />
+        <Route path="laboratory/requests/:id" element={<AllowedRoles roles={ROLES.labView}><LabWorklist /></AllowedRoles>} />
 
-        <Route path="procedures" element={<ProcedureDashboard />} />
-        <Route path="procedures/:id" element={<ProcedureDetail />} />
+        <Route path="procedures" element={<AllowedRoles roles={ROLES.procedure}><ProcedureDashboard /></AllowedRoles>} />
+        <Route path="procedures/:id" element={<AllowedRoles roles={ROLES.procedure}><ProcedureDetail /></AllowedRoles>} />
 
-        <Route path="prescriptions" element={<PrescriptionList />} />
-        <Route path="prescriptions/:id" element={<PrescriptionDetail />} />
+        <Route path="prescriptions" element={<AllowedRoles roles={ROLES.doctor}><PrescriptionList /></AllowedRoles>} />
+        <Route path="prescriptions/:id" element={<AllowedRoles roles={ROLES.doctor}><PrescriptionDetail /></AllowedRoles>} />
 
         <Route path="reports" element={<Reports />} />
 
-        <Route path="admin" element={<AdminUsers />} />
-        <Route path="admin/system" element={<AdminSystem />} />
+        <Route path="admin" element={<AllowedRoles roles={ROLES.administrator}><AdminUsers /></AllowedRoles>} />
+        <Route path="admin/system" element={<AllowedRoles roles={ROLES.administrator}><AdminSystem /></AllowedRoles>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

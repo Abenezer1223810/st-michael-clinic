@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlaskConical } from 'lucide-react';
 import { laboratoryService } from '../../services/laboratoryService';
 import { useToast } from '../../context/ToastContext';
@@ -6,6 +7,7 @@ import { Modal } from '../ui/Modal';
 import { Spinner } from '../ui/States';
 
 export function LabRequestModal({ open, onClose, visitId, onRequested }) {
+  const { t } = useTranslation();
   const toast = useToast();
   const [tests, setTests] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -31,13 +33,13 @@ export function LabRequestModal({ open, onClose, visitId, onRequested }) {
 
   const handleSubmit = async () => {
     if (selected.length === 0) {
-      setError('Select at least one test.');
+      setError(t('Select at least one test.'));
       return;
     }
     setSaving(true);
     try {
       const { message } = await laboratoryService.createRequest(visitId, selected);
-      toast.success(message || 'Laboratory request created.');
+      toast.success(message || t('Laboratory request created.'));
       onRequested?.();
       onClose();
     } catch (e) {
@@ -52,16 +54,16 @@ export function LabRequestModal({ open, onClose, visitId, onRequested }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Request Laboratory Test"
-      subtitle="Select the tests to request for this patient"
+      title={t('Request Laboratory Test')}
+      subtitle={t('Select the tests to request for this patient')}
       icon={FlaskConical}
       footer={
         <>
           <button className="btn-secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button className="btn-primary" onClick={handleSubmit} disabled={saving}>
-            {saving ? <Spinner /> : 'Request Tests'}
+            {saving ? <Spinner /> : t('Request Tests')}
           </button>
         </>
       }
@@ -71,23 +73,23 @@ export function LabRequestModal({ open, onClose, visitId, onRequested }) {
       ) : (
         <div>
           <div className="mb-3 flex flex-wrap gap-2">
-            {tests.map((t) => (
+            {tests.map((test) => (
               <button
-                key={t.id}
-                onClick={() => toggle(t.id)}
+                key={test.id}
+                onClick={() => toggle(test.id)}
                 className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                  selected.includes(t.id)
+                  selected.includes(test.id)
                     ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-slate-200 bg-white text-slate-700 hover:border-brand-400'
                 }`}
               >
-                {t.name}
+                {t(test.name)}
               </button>
             ))}
           </div>
           {selected.length > 0 && (
             <p className="mb-3 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
-              {selected.length} test(s) selected
+              {t('{{count}} test(s) selected', { count: selected.length })}
             </p>
           )}
           {error && <p className="mb-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
