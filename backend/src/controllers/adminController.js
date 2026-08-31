@@ -1,18 +1,19 @@
-import { db } from '../data/store.js';
-import { nextUserId } from '../utils/idGenerator.js';
+import { db } from '../db/index.js';
 
 const ROLES = ['administrator', 'receptionist', 'doctor', 'laboratory', 'procedure'];
 
 function safeUser(u) {
+  if (!u) return null;
   const { password: _pw, ...safe } = u;
   return safe;
 }
 
-export const listUsers = (_req, res) => {
-  res.json({ users: db.users.map(safeUser) });
+export const listUsers = async (_req, res) => {
+  const users = await db.listUsers();
+  res.json({ users: users.map(safeUser) });
 };
 
-export const createUser = (req, res) => {
+export const createUser = async (req, res) => {
   const { name, username, title, role, password } = req.body || {};
   if (!name || !String(name).trim()) {
     return res.status(400).json({ message: 'Full name is required.' });
@@ -26,29 +27,25 @@ export const createUser = (req, res) => {
   if (!ROLES.includes(role)) {
     return res.status(400).json({ message: 'Please choose a valid role.' });
   }
-  const exists = db.users.some(
-    (u) => u.username.toLowerCase() === String(username).trim().toLowerCase()
-  );
-  if (exists) {
+
+  const existing = await db.findUserByUsername(username);
+  if (existing) {
     return res.status(400).json({ message: 'That username is already taken. Choose another one.' });
   }
 
-  const user = {
-    id: nextUserId(),
-    username: String(username).trim(),
-    password: String(password),
+  const user = await db.createUser({
     name: String(name).trim(),
+    username: String(username).trim(),
     title: (title || '').trim() || ROLES[ROLES.indexOf(role)],
     role,
-    banned: false,
-    createdAt: new Date().toISOString(),
-  };
-  db.users.push(user);
+    password: String(password),
+  });
+
   res.status(201).json({ user: safeUser(user), message: 'User account created successfully.' });
 };
 
-export const updateUser = (req, res) => {
-  const user = db.users.find((u) => u.id === req.params.id);
+export const updateUser = async (req, res) => {
+  const user = await db.findUserById(req.params.id);
   if (!user) {
     return res.status(404).json({ message: 'User account not found.' });
   }
@@ -66,34 +63,39 @@ export const updateUser = (req, res) => {
       return res.status(400).json({ message: 'You cannot ban your own account.' });
     }
   }
+
+  const allUsers = await db.listUsers();
   if (banned === true) {
-    const admins = db.users.filter((u) => u.role === 'administrator' && !u.banned);
+    const admins = allUsers.filter((u) => u.role === 'administrator' && !u.banned);
     if (admins.length <= 1 && admins[0]?.id === user.id) {
       return res.status(400).json({ message: 'You cannot ban the last active administrator.' });
     }
   }
 
-  if (name !== undefined) user.name = String(name).trim() || user.name;
-  if (title !== undefined) user.title = String(title).trim() || user.title;
-  if (role !== undefined) user.role = role;
-  if (banned !== undefined) user.banned = banned === true;
+  const updates = {};
+  if (name !== undefined) updates.name = String(name).trim() || user.name;
+  if (title !== undefined) updates.title = String(title).trim() || user.title;
+  if (role !== undefined) updates.role = role;
+  if (banned !== undefined) updates.banned = banned === true;
 
-  res.json({ user: safeUser(user), message: 'User account updated.' });
+  const updated = await db.updateUser(req.params.id, updates);
+  res.json({ user: safeUser(updated), message: 'User account updated.' });
 };
 
-export const deleteUser = (req, res) => {
-  const idx = db.users.findIndex((u) => u.id === req.params.id);
-  if (idx === -1) {
+export const deleteUser = async (req, res) => {
+  const user = await db.findUserById(req.params.id);
+  if (!user) {
     return res.status(404).json({ message: 'User account not found.' });
   }
-  const user = db.users[idx];
   if (user.id === req.user.id) {
     return res.status(400).json({ message: 'You cannot delete your own account.' });
   }
-  const admins = db.users.filter((u) => u.role === 'administrator' && !u.banned);
+  const allUsers = await db.listUsers();
+  const admins = allUsers.filter((u) => u.role === 'administrator' && !u.banned);
   if (user.role === 'administrator' && admins.length <= 1) {
     return res.status(400).json({ message: 'You cannot delete the last active administrator.' });
   }
-  db.users.splice(idx, 1);
+
+  await db.deleteUser(req.params.id);
   res.json({ message: `User "${user.name}" has been removed.` });
 };

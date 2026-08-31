@@ -3,16 +3,25 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "St. Michael Medium Clinic - Clinic Management System demo backend",
+  "description": "St. Michael Medium Clinic - Clinic Management System backend with PostgreSQL",
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "reset": "node src/scripts/reset.js"
+    "reset": "node src/scripts/reset.js",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "node scripts/seed.js",
+    "test:smoke": "node scripts/smoke-api.js"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.3"
   }
 }

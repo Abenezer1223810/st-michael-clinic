@@ -9,6 +9,7 @@ import {
   verifyResult,
   completeRequest,
 } from '../controllers/laboratoryController.js';
+import { listDevices, ingestAnalyzerResults } from '../controllers/deviceController.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const CLINICAL = ['doctor', 'laboratory', 'administrator'];
@@ -16,8 +17,13 @@ const LAB_WRITE = ['laboratory', 'administrator'];
 
 const router = Router();
 
+// Device machine ingestion (can be called by laboratory staff or automated LIS bridge)
+router.post('/devices/ingest', ingestAnalyzerResults);
+router.post('/analyzer-results', ingestAnalyzerResults);
+
 router.use(requireAuth);
 router.get('/tests', requireRole(...CLINICAL), getTestCatalog);
+router.get('/devices', requireRole(...CLINICAL), listDevices);
 router.get('/requests', requireRole(...CLINICAL), listRequests);
 router.post('/requests', requireRole(...CLINICAL), createRequest);
 router.get('/requests/:id', requireRole(...CLINICAL), getRequest);

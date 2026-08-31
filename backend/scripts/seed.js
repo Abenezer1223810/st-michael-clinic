@@ -1,0 +1,272 @@
+import pkg from '@prisma/client';
+const PrismaClient = pkg?.PrismaClient || pkg?.default?.PrismaClient;
+import { buildSeed } from '../src/data/seed.js';
+import { DEFAULT_DEVICE_MAPPINGS } from '../src/services/analyzerParser.js';
+
+const prisma = new PrismaClient();
+
+export async function seedDatabase(customPrisma) {
+  const db = customPrisma || prisma;
+  const seed = buildSeed();
+
+  console.log('Seeding PostgreSQL database for St. Michael Medium Clinic...');
+
+  // 1. Clear existing data in correct FK order
+  await db.$executeRawUnsafe(`
+    TRUNCATE TABLE 
+      "queues",
+      "consultations",
+      "lab_results",
+      "lab_requests",
+      "procedures",
+      "prescriptions",
+      "visits",
+      "patients",
+      "users",
+      "lab_tests",
+      "medicines",
+      "procedure_types",
+      "departments",
+      "lab_devices"
+    CASCADE;
+  `);
+
+  // 2. Catalogs
+  await db.department.createMany({
+    data: seed.departments.map((name, idx) => ({ id: `DP-${String(idx + 1).padStart(2, '0')}`, name })),
+  });
+
+  await db.labTest.createMany({
+    data: seed.labTests.map((t) => ({
+      id: t.id,
+      name: t.name,
+      group: t.group,
+      unit: t.unit,
+      referenceRange: t.referenceRange,
+    })),
+  });
+
+  await db.medicine.createMany({
+    data: seed.medicines.map((m) => ({
+      id: m.id,
+      name: m.name,
+      form: m.form,
+      defaultDosage: m.defaultDosage || null,
+      defaultRoute: m.defaultRoute || null,
+    })),
+  });
+
+  await db.procedureType.createMany({
+    data: seed.procedureTypes.map((p) => ({
+      id: p.id,
+      name: p.name,
+    })),
+  });
+
+  // 3. Laboratory Devices (CVC / CBC Analyzer & Chemistry Analyzer Integration)
+  await db.labDevice.createMany({
+    data: [
+      {
+        id: 'DEV-CBC-01',
+        name: 'Mindray BC-5000 / Sysmex XN-550 (Hematology / CBC Analyzer)',
+        type: 'hematology_cbc',
+        protocol: 'HL7_V2',
+        ipAddress: '192.168.1.120',
+        port: 5100,
+        status: 'online',
+        mappings: {
+          HGB: 'LT-01',
+          HB: 'LT-01',
+          WBC: 'LT-02',
+          PLT: 'LT-03',
+        },
+      },
+      {
+        id: 'DEV-CHEM-01',
+        name: 'Roche Cobas c311 / Mindray BS-240 (Clinical Chemistry Analyzer)',
+        type: 'clinical_chemistry',
+        protocol: 'ASTM_1394',
+        ipAddress: '192.168.1.125',
+        port: 5200,
+        status: 'online',
+        mappings: {
+          GLU: 'LT-04',
+          FBS: 'LT-04',
+          RBS: 'LT-05',
+          CHOL: 'LT-06',
+          CREA: 'LT-07',
+          ALT: 'LT-08',
+          SGPT: 'LT-08',
+        },
+      },
+    ],
+  });
+
+  // 4. Users
+  await db.user.createMany({
+    data: seed.users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      password: u.password,
+      name: u.name,
+      role: u.role,
+      title: u.title || '',
+      banned: false,
+    })),
+  });
+
+  // 5. Patients
+  await db.patient.createMany({
+    data: seed.patients.map((p) => ({
+      id: p.id,
+      fullName: p.fullName,
+      gender: p.gender,
+      dateOfBirth: p.dateOfBirth || null,
+      phone: p.phone,
+      address: p.address || '',
+      emergencyContactName: p.emergencyContactName || '',
+      emergencyContactPhone: p.emergencyContactPhone || '',
+      relationshipToPatient: p.relationshipToPatient || '',
+      allergies: p.allergies || [],
+      registrationDate: new Date(p.registrationDate || p.createdAt),
+      createdAt: new Date(p.createdAt),
+    })),
+  });
+
+  // 6. Visits
+  await db.visit.createMany({
+    data: seed.visits.map((v) => ({
+      id: v.id,
+      visitNumber: v.visitNumber,
+      patientId: v.patientId,
+      patientName: v.patientName,
+      service: v.service,
+      reason: v.reason || '',
+      date: new Date(v.date),
+      status: v.status || 'completed',
+      createdAt: new Date(v.createdAt),
+    })),
+  });
+
+  // 7. Queues
+  await db.queue.createMany({
+    data: seed.queue.map((q) => ({
+      id: q.id,
+      queueNumber: q.queueNumber,
+      visitId: q.visitId,
+      visitNumber: q.visitNumber,
+      patientId: q.patientId,
+      patientName: q.patientName,
+      service: q.service,
+      time: new Date(q.time),
+      date: q.date,
+      status: q.status || 'waiting',
+    })),
+  });
+
+  // 8. Consultations
+  await db.consultation.createMany({
+    data: seed.consultations.map((c) => ({
+      id: c.id,
+      consultationNumber: c.consultationNumber,
+      visitId: c.visitId,
+      visitNumber: c.visitNumber,
+      patientId: c.patientId,
+      patientName: c.patientName,
+      doctor: c.doctor,
+      doctorId: c.doctorId || 'U-DOCTOR',
+      date: new Date(c.date),
+      status: c.status || 'in_progress',
+      vitals: c.vitals || {},
+      chiefComplaint: c.chiefComplaint || '',
+      medicalHistory: c.medicalHistory || '',
+      clinicalExamination: c.clinicalExamination || '',
+      diagnosis: c.diagnosis || '',
+      treatmentRecommendation: c.treatmentRecommendation || '',
+      doctorNotes: c.doctorNotes || '',
+      followUp: c.followUp || '',
+      referral: c.referral || null,
+    })),
+  });
+
+  // 9. Lab Requests
+  await db.labRequest.createMany({
+    data: seed.labRequests.map((r) => ({
+      id: r.id,
+      requestNumber: r.requestNumber,
+      visitId: r.visitId,
+      visitNumber: r.visitNumber,
+      patientId: r.patientId,
+      patientName: r.patientName,
+      requestingDoctor: r.requestingDoctor,
+      date: new Date(r.date),
+      tests: r.tests || [],
+      status: r.status || 'pending',
+    })),
+  });
+
+  // 10. Lab Results
+  await db.labResult.createMany({
+    data: seed.labResults.map((res) => ({
+      id: res.id,
+      requestId: res.requestId,
+      requestNumber: res.requestNumber,
+      patientId: res.patientId,
+      visitId: res.visitId,
+      status: res.status || 'pending',
+      date: new Date(res.date),
+      enteredAt: res.enteredAt ? new Date(res.enteredAt) : null,
+      verifiedAt: res.verifiedAt ? new Date(res.verifiedAt) : null,
+      enteredBy: res.enteredBy || null,
+      verifiedBy: res.verifiedBy || null,
+      results: res.results || [],
+    })),
+  });
+
+  // 11. Procedures
+  await db.procedure.createMany({
+    data: seed.procedures.map((p) => ({
+      id: p.id,
+      procedureNumber: p.procedureNumber,
+      visitId: p.visitId,
+      visitNumber: p.visitNumber,
+      patientId: p.patientId,
+      patientName: p.patientName,
+      requestingDoctor: p.requestingDoctor,
+      procedureType: p.procedureType,
+      notes: p.notes || '',
+      date: new Date(p.date),
+      status: p.status || 'requested',
+      recording: p.recording || null,
+    })),
+  });
+
+  // 12. Prescriptions
+  await db.prescription.createMany({
+    data: seed.prescriptions.map((px) => ({
+      id: px.id,
+      prescriptionNumber: px.prescriptionNumber,
+      visitId: px.visitId,
+      visitNumber: px.visitNumber,
+      patientId: px.patientId,
+      patientName: px.patientName,
+      doctor: px.doctor,
+      date: new Date(px.date),
+      medicines: px.medicines || [],
+      status: px.status || 'completed',
+    })),
+  });
+
+  console.log('PostgreSQL database seeded successfully with full demo and catalog data.');
+}
+
+if (process.argv[1] && process.argv[1].endsWith('seed.js')) {
+  seedDatabase()
+    .catch((err) => {
+      console.error('Error seeding database:', err);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
