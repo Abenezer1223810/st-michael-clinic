@@ -5,6 +5,7 @@
  * - ASTM 1394-97 / LIS2-A2 frames
  * - HL7 v2.x (ORU^R01 / OBR / OBX segments)
  * - Hematology (CVC / CBC) & Clinical Chemistry parameter code mappings
+ * - Automated numeric and qualitative Reference Range evaluation & High/Low flagging
  */
 
 export const DEFAULT_DEVICE_MAPPINGS = {
@@ -44,6 +45,68 @@ export const DEFAULT_DEVICE_MAPPINGS = {
 };
 
 /**
+ * Evaluate result value against reference range
+ * Returns: 'NORMAL' | 'HIGH' | 'LOW' | 'CRITICAL'
+ */
+export function evaluateReferenceRange(value, rangeStr) {
+  if (!rangeStr || value === undefined || value === null || value === '') return 'NORMAL';
+  const valStr = String(value).trim();
+  const num = parseFloat(valStr);
+
+  const cleanRange = rangeStr.replace(/–/g, '-').trim();
+
+  // If numeric test value
+  if (!isNaN(num)) {
+    // Case 1: range like "12.0 - 16.0" or "4.0 - 11.0" or "0.6 - 1.2"
+    const dashMatch = cleanRange.match(/^([0-9.]+)\s*-\s*([0-9.]+)$/);
+    if (dashMatch) {
+      const min = parseFloat(dashMatch[1]);
+      const max = parseFloat(dashMatch[2]);
+      if (num < min) {
+        return num < min * 0.6 ? 'CRITICAL' : 'LOW';
+      }
+      if (num > max) {
+        return num > max * 1.5 ? 'CRITICAL' : 'HIGH';
+      }
+      return 'NORMAL';
+    }
+
+    // Case 2: threshold like "< 200" or "< 140"
+    const ltMatch = cleanRange.match(/^<\s*([0-9.]+)$/);
+    if (ltMatch) {
+      const max = parseFloat(ltMatch[1]);
+      return num >= max ? (num > max * 1.5 ? 'CRITICAL' : 'HIGH') : 'NORMAL';
+    }
+
+    // Case 3: threshold like "> 60"
+    const gtMatch = cleanRange.match(/^>\s*([0-9.]+)$/);
+    if (gtMatch) {
+      const min = parseFloat(gtMatch[1]);
+      return num <= min ? 'LOW' : 'NORMAL';
+    }
+  }
+
+  // Qualitative test comparisons (e.g. Malaria, HIV, HBsAg, Pregnancy)
+  const lowerVal = valStr.toLowerCase();
+  const lowerRange = cleanRange.toLowerCase();
+
+  if (lowerRange.includes('negative')) {
+    if (lowerVal.includes('positive') || lowerVal.includes('reactive') || lowerVal.includes('detected')) {
+      return 'HIGH';
+    }
+  }
+
+  if (lowerRange.includes('< 1:80') || lowerRange.includes('1:80')) {
+    const titerMatch = valStr.match(/1:([0-9]+)/);
+    if (titerMatch && parseInt(titerMatch[1], 10) >= 160) {
+      return 'HIGH';
+    }
+  }
+
+  return 'NORMAL';
+}
+
+/**
  * Parse an HL7 v2.x message (e.g. ORU^R01 result transmission)
  */
 export function parseHL7Message(rawHL7) {
@@ -73,13 +136,15 @@ export function parseHL7Message(rawHL7) {
       const refRange = fields[7] || '';
       const flag = fields[8] || ''; // N = normal, H = high, L = low, A = abnormal
 
+      const evaluatedFlag = evaluateReferenceRange(value, refRange);
+
       observations.push({
         code: testCode.toUpperCase(),
         name: testName,
         value,
         units,
         referenceRange: refRange,
-        flag: flag === 'H' ? 'High' : flag === 'L' ? 'Low' : flag === 'A' ? 'Abnormal' : 'Normal',
+        flag: flag === 'H' ? 'HIGH' : flag === 'L' ? 'LOW' : flag === 'A' ? 'HIGH' : evaluatedFlag,
       });
     }
   }
@@ -122,12 +187,14 @@ export function parseASTMMessage(rawASTM) {
       const refRange = fields[5] || '';
       const flag = fields[6] || '';
 
+      const evaluatedFlag = evaluateReferenceRange(value, refRange);
+
       observations.push({
         code: testCode.toUpperCase(),
         value,
         units,
         referenceRange: refRange,
-        flag: flag === 'H' ? 'High' : flag === 'L' ? 'Low' : 'Normal',
+        flag: flag === 'H' ? 'HIGH' : flag === 'L' ? 'LOW' : evaluatedFlag,
       });
     }
   }
@@ -176,34 +243,43 @@ export function parseAnalyzerPayload(body) {
   }
 
   // If already JSON
-  const { sampleId, requestId, patientId, instrumentId, instrumentName, deviceType, results, observations } = body;
+  const { sampleId, barcode, requestId, patientId, instrumentId, instrumentName, deviceType, results, observations } = body;
 
   const rawObs = results || observations || [];
   const normalizedObs = Array.isArray(rawObs)
-    ? rawObs.map((o) => ({
-        code: String(o.code || o.testCode || o.testId || o.name || '').toUpperCase(),
-        name: o.name || o.testName || o.code || '',
-        value: String(o.value ?? o.result ?? ''),
-        units: o.units || o.unit || '',
-        referenceRange: o.referenceRange || o.range || '',
-        flag: o.flag || o.remarks || 'Normal',
-      }))
-    : Object.entries(rawObs).map(([k, v]) => ({
-        code: k.toUpperCase(),
-        name: k,
-        value: typeof v === 'object' ? String(v.value ?? v.result ?? '') : String(v),
-        units: typeof v === 'object' ? v.unit || '' : '',
-        referenceRange: typeof v === 'object' ? v.referenceRange || '' : '',
-        flag: typeof v === 'object' ? v.flag || 'Normal' : 'Normal',
-      }));
+    ? rawObs.map((o) => {
+        const val = String(o.value ?? o.result ?? '');
+        const range = o.referenceRange || o.range || '';
+        const evaluated = evaluateReferenceRange(val, range);
+        return {
+          code: String(o.code || o.testCode || o.testId || o.name || '').toUpperCase(),
+          name: o.name || o.testName || o.code || '',
+          value: val,
+          units: o.units || o.unit || '',
+          referenceRange: range,
+          flag: o.flag ? String(o.flag).toUpperCase() : evaluated,
+        };
+      })
+    : Object.entries(rawObs).map(([k, v]) => {
+        const val = typeof v === 'object' ? String(v.value ?? v.result ?? '') : String(v);
+        const range = typeof v === 'object' ? v.referenceRange || '' : '';
+        const evaluated = evaluateReferenceRange(val, range);
+        return {
+          code: k.toUpperCase(),
+          name: k,
+          value: val,
+          units: typeof v === 'object' ? v.unit || '' : '',
+          referenceRange: range,
+          flag: typeof v === 'object' && v.flag ? String(v.flag).toUpperCase() : evaluated,
+        };
+      });
 
   return {
     format: 'REST_JSON',
     instrumentId: instrumentId || 'DEV-AUTO',
     instrumentName: instrumentName || deviceType || 'Automated Clinical Analyzer',
-    sampleId: sampleId || requestId || '',
+    sampleId: sampleId || barcode || requestId || '',
     patientId: patientId || '',
     observations: normalizedObs,
   };
 }
-

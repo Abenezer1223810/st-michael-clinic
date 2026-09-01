@@ -7,5 +7,8 @@ export const reportService = {
   laboratory: (date) => api.get(`/reports/laboratory${date ? `?date=${date}` : ''}`),
   procedures: (date) => api.get(`/reports/procedures${date ? `?date=${date}` : ''}`),
   prescriptions: (date) => api.get(`/reports/prescriptions${date ? `?date=${date}` : ''}`),
-  resetDemo: () => api.post('/dev/reset'),
+  revenue: (date) => api.get(`/reports/revenue${date ? `?date=${date}` : ''}`),
+  labWorkload: (date) => api.get(`/reports/lab-workload${date ? `?date=${date}` : ''}`),
+  patientHistory: (patientId) => api.get(`/reports/patient-history/${patientId}`),
+  visitSummary: (visitId) => api.get(`/reports/visit-summary/${visitId}`),
 };

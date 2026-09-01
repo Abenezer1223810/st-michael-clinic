@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pill, Plus, Trash2, Eye, AlertTriangle } from 'lucide-react';
+import { Pill, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { prescriptionService } from '../../services/prescriptionService';
 import { catalogService } from '../../services/catalogService';
 import { useToast } from '../../context/ToastContext';
 import { Modal } from '../ui/Modal';
 import { Field } from '../ui/Field';
 import { Spinner } from '../ui/States';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { PrescriptionPrint } from '../print/PrescriptionPrint';
 
 const emptyMed = {
@@ -48,6 +49,7 @@ export function PrescriptionModal({ open, onClose, visitId, onCreated, allergies
   const [error, setError] = useState(null);
   const [errors, setErrors] = useState({});
   const [preview, setPreview] = useState(null);
+  const [deleteIndex, setDeleteIndex] = useState(null);
 
   const drugAllergies = (allergies || []).filter((a) => a.category === 'Drug');
 
@@ -60,6 +62,7 @@ export function PrescriptionModal({ open, onClose, visitId, onCreated, allergies
     setError(null);
     setErrors({});
     setPreview(null);
+    setDeleteIndex(null);
     catalogService.medicines().then((d) => setCatalog(d.medicines)).catch(() => {});
   }, [open]);
 
@@ -81,13 +84,29 @@ export function PrescriptionModal({ open, onClose, visitId, onCreated, allergies
   };
 
   const addMed = () => setMeds((prev) => [...prev, { ...emptyMed }]);
+
+  const handleRequestRemove = (idx) => {
+    if (meds[idx]?.medicine?.trim()) {
+      setDeleteIndex(idx);
+    } else {
+      removeMed(idx);
+    }
+  };
+
   const removeMed = (idx) => {
-    setMeds((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
+    setMeds((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : [{ ...emptyMed }]));
     setErrors((prev) => {
       const next = { ...prev };
       delete next[idx];
       return next;
     });
+  };
+
+  const confirmDeleteMed = () => {
+    if (deleteIndex !== null) {
+      removeMed(deleteIndex);
+      setDeleteIndex(null);
+    }
   };
 
   const validate = () => {
@@ -157,11 +176,11 @@ export function PrescriptionModal({ open, onClose, visitId, onCreated, allergies
       >
         <div className="space-y-4">
           {drugAllergies.length > 0 && (
-            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <div>
                 <p className="font-semibold">{t('Known drug allergies')}</p>
-                <p className="mt-0.5 text-xs text-amber-700">
+                <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
                   {drugAllergies.map((a) => `${a.name} (${t(a.severity)})`).join(' · ')}
                   {drugAllergies.some((a) => a.reaction) && ` · ${t('Reactions')}: ${drugAllergies.map((a) => a.reaction).filter(Boolean).join(', ')}`}
                 </p>
@@ -172,65 +191,66 @@ export function PrescriptionModal({ open, onClose, visitId, onCreated, allergies
           {meds.map((m, idx) => {
             const warnings = warnFor(idx);
             return (
-            <div key={idx} className="rounded-xl border border-slate-200 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  {t('Medicine {{count}}', { count: idx + 1 })}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeMed(idx)}
-                  disabled={meds.length === 1}
-                  className="rounded-md p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label={t('Medicine')} required className="sm:col-span-2">
-                  <input
-                    className="input"
-                    list="medicine-catalog"
-                    value={m.medicine}
-                    onChange={(e) => updateMed(idx, 'medicine', e.target.value)}
-                    placeholder={t('Select or type a medicine')}
-                  />
-                </Field>
-                {warnings.length > 0 && (
-                  <div className="sm:col-span-2">
-                    <p className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-600" />
-                      <span>
-                        {t('Patient has a known allergy to this medicine:')}{' '}
-                        <span className="font-semibold">
-                          {warnings.map((a) => `${a.name} (${t(a.severity)})`).join(', ')}
+              <div key={idx} className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    {t('Medicine {{count}}', { count: idx + 1 })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRequestRemove(idx)}
+                    disabled={meds.length === 1 && !m.medicine}
+                    className="rounded-md p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30 dark:hover:bg-rose-950/40 transition"
+                    title={t('Remove medicine')}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label={t('Medicine')} required className="sm:col-span-2">
+                    <input
+                      className="input"
+                      list="medicine-catalog"
+                      value={m.medicine}
+                      onChange={(e) => updateMed(idx, 'medicine', e.target.value)}
+                      placeholder={t('Select or type a medicine')}
+                    />
+                  </Field>
+                  {warnings.length > 0 && (
+                    <div className="sm:col-span-2">
+                      <p className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-600 dark:text-rose-400" />
+                        <span>
+                          {t('Patient has a known allergy to this medicine:')}{' '}
+                          <span className="font-semibold">
+                            {warnings.map((a) => `${a.name} (${t(a.severity)})`).join(', ')}
+                          </span>
+                          {warnings.some((a) => a.reaction) && ` — ${warnings.map((a) => a.reaction).filter(Boolean).join('; ')}`}. {t('Review before prescribing.')}
                         </span>
-                        {warnings.some((a) => a.reaction) && ` — ${warnings.map((a) => a.reaction).filter(Boolean).join('; ')}`}. {t('Review before prescribing.')}
-                      </span>
-                    </p>
-                  </div>
-                )}
-                <Field label={t('Dosage')} required error={errors[idx]?.dosage}>
-                  <input className="input" value={m.dosage} onChange={(e) => updateMed(idx, 'dosage', e.target.value)} placeholder={t('e.g. 500 mg')} />
-                </Field>
-                <Field label={t('Frequency')} required error={errors[idx]?.frequency}>
-                  <input className="input" value={m.frequency} onChange={(e) => updateMed(idx, 'frequency', e.target.value)} placeholder={t('e.g. 3 times daily')} />
-                </Field>
-                <Field label={t('Duration')} required error={errors[idx]?.duration}>
-                  <input className="input" value={m.duration} onChange={(e) => updateMed(idx, 'duration', e.target.value)} placeholder={t('e.g. 5 days')} />
-                </Field>
-                <Field label={t('Route')}>
-                  <select className="input" value={m.route} onChange={(e) => updateMed(idx, 'route', e.target.value)}>
-                    {['Oral', 'IV', 'IM', 'Subcutaneous', 'Topical', 'Inhalation', 'Intravenous'].map((r) => (
-                      <option key={r}>{t(r)}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label={t('Instructions')} className="sm:col-span-2">
-                  <input className="input" value={m.instructions} onChange={(e) => updateMed(idx, 'instructions', e.target.value)} placeholder={t('e.g. After meals')} />
-                </Field>
+                      </p>
+                    </div>
+                  )}
+                  <Field label={t('Dosage')} required error={errors[idx]?.dosage}>
+                    <input className="input" value={m.dosage} onChange={(e) => updateMed(idx, 'dosage', e.target.value)} placeholder={t('e.g. 500 mg')} />
+                  </Field>
+                  <Field label={t('Frequency')} required error={errors[idx]?.frequency}>
+                    <input className="input" value={m.frequency} onChange={(e) => updateMed(idx, 'frequency', e.target.value)} placeholder={t('e.g. 3 times daily')} />
+                  </Field>
+                  <Field label={t('Duration')} required error={errors[idx]?.duration}>
+                    <input className="input" value={m.duration} onChange={(e) => updateMed(idx, 'duration', e.target.value)} placeholder={t('e.g. 5 days')} />
+                  </Field>
+                  <Field label={t('Route')}>
+                    <select className="input" value={m.route} onChange={(e) => updateMed(idx, 'route', e.target.value)}>
+                      {['Oral', 'IV', 'IM', 'Subcutaneous', 'Topical', 'Inhalation', 'Intravenous'].map((r) => (
+                        <option key={r} value={r}>{t(r)}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label={t('Instructions')} className="sm:col-span-2">
+                    <input className="input" value={m.instructions} onChange={(e) => updateMed(idx, 'instructions', e.target.value)} placeholder={t('e.g. After meals')} />
+                  </Field>
+                </div>
               </div>
-            </div>
             );
           })}
 
@@ -246,9 +266,25 @@ export function PrescriptionModal({ open, onClose, visitId, onCreated, allergies
             <Plus className="h-4 w-4" /> {t('Add Another Medicine')}
           </button>
 
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>}
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={deleteIndex !== null}
+        onClose={() => setDeleteIndex(null)}
+        onConfirm={confirmDeleteMed}
+        title={t('Remove Medicine?')}
+        message={
+          deleteIndex !== null && meds[deleteIndex]?.medicine
+            ? t('Are you sure you want to remove {{medicine}} from this prescription?', {
+                medicine: meds[deleteIndex].medicine,
+              })
+            : t('Are you sure you want to remove this medicine row?')
+        }
+        confirmText={t('Yes, Remove')}
+        tone="danger"
+      />
 
       {preview && (
         <PrescriptionPrint prescription={preview} onClose={closeAll} />

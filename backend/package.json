@@ -12,10 +12,19 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node scripts/seed.js",
-    "test:smoke": "node scripts/smoke-api.js"
+    "test:smoke": "node scripts/smoke-api.js",
+    "test:phase1": "node scripts/test-phase1.js",
+    "test:phase2": "node scripts/test-phase2.js",
+    "test:phase3": "node scripts/test-phase3.js",
+    "test:phase4": "node scripts/test-phase4.js",
+    "test:phase5": "node scripts/test-phase5.js",
+    "test:phase6": "node scripts/test-phase6-e2e.js",
+    "test:e2e": "node scripts/test-phase6-e2e.js",
+    "test:recycle": "node scripts/test-recycle-bin.js"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",

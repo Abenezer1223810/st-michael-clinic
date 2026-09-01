@@ -5,4 +5,5 @@ export const patientService = {
   get: (id) => api.get(`/patients/${id}`),
   create: (data) => api.post('/patients', data),
   history: (id) => api.get(`/patients/${id}/history`),
+  timeline: (id) => api.get(`/patients/${id}/timeline`),
 };

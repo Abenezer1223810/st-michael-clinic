@@ -8,7 +8,7 @@ export const getTestCatalog = async (_req, res) => {
 
 export const listRequests = async (req, res) => {
   const { status } = req.query;
-  const requests = await db.listLabRequests(status);
+  const requests = await db.listLabRequests(status, req.user?.role);
   res.json({ requests });
 };
 
@@ -32,6 +32,31 @@ export const createRequest = async (req, res) => {
   res.status(201).json({ request, message: 'Laboratory request created.' });
 };
 
+export const collectSample = async (req, res) => {
+  try {
+    const data = await db.collectSample(req.params.id, req.body || {}, req.user);
+    if (data.error) return res.status(data.status || 400).json({ message: data.error });
+    res.status(201).json({
+      sample: data.sample,
+      request: data.request,
+      message: `Specimen collected. Sample barcode ${data.sample.sampleNumber} assigned.`,
+    });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ message: err.message });
+  }
+};
+
+export const getSample = async (req, res) => {
+  const sample = await db.getSample(req.params.id);
+  if (!sample) return res.status(404).json({ message: 'Sample not found.' });
+  res.json({ sample });
+};
+
+export const listSamples = async (req, res) => {
+  const samples = await db.listSamples(req.query.requestId);
+  res.json({ samples });
+};
+
 export const getResult = async (req, res) => {
   const data = await db.getLabResult(req.params.id);
   if (!data) return res.status(404).json({ message: 'Laboratory request not found.' });
@@ -44,10 +69,13 @@ export const enterResults = async (req, res) => {
     return res.status(400).json({ message: 'Results payload is invalid.' });
   }
 
-  const result = await db.enterLabResults(req.params.id, results, req.user);
-  if (!result) return res.status(404).json({ message: 'Laboratory request not found.' });
-
-  res.json({ result, message: 'Results saved. Awaiting verification.' });
+  try {
+    const result = await db.enterLabResults(req.params.id, results, req.user);
+    if (!result) return res.status(404).json({ message: 'Laboratory request not found.' });
+    res.json({ result, message: 'Results saved. Awaiting verification.' });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ message: err.message });
+  }
 };
 
 export const verifyResult = async (req, res) => {
@@ -56,6 +84,14 @@ export const verifyResult = async (req, res) => {
     return res.status(data.status || 400).json({ message: data.error });
   }
   res.json({ result: data.result, message: 'Laboratory result verified.' });
+};
+
+export const releaseResultToDoctor = async (req, res) => {
+  const data = await db.releaseLabResultToDoctor(req.params.id, req.user);
+  if (data.error) {
+    return res.status(data.status || 400).json({ message: data.error });
+  }
+  res.json({ result: data.result, request: data.request, message: 'Laboratory result released to OPD doctor.' });
 };
 
 export const completeRequest = async (req, res) => {

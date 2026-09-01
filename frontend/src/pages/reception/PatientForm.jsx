@@ -8,6 +8,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Field } from '../../components/ui/Field';
 import { Spinner } from '../../components/ui/States';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 const empty = {
   fullName: '',
@@ -39,10 +40,11 @@ export default function PatientForm() {
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [deleteAllergyIndex, setDeleteAllergyIndex] = useState(null);
 
   const set = (key) => (e) => {
     setForm((f) => ({ ...f, [key]: e.target.value }));
-    setErrors((er) => ({ ...er, [key]: '' }));
+    setErrors((er) => ({ ...er, [key]: null }));
   };
 
   const validate = () => {
@@ -91,6 +93,21 @@ export default function PatientForm() {
 
   const addAllergy = () => {
     setForm((f) => ({ ...f, allergies: [...f.allergies, { ...emptyAllergy }] }));
+  };
+
+  const handleRequestRemoveAllergy = (idx) => {
+    if (form.allergies[idx]?.name?.trim()) {
+      setDeleteAllergyIndex(idx);
+    } else {
+      removeAllergy(idx);
+    }
+  };
+
+  const confirmRemoveAllergy = () => {
+    if (deleteAllergyIndex !== null) {
+      removeAllergy(deleteAllergyIndex);
+      setDeleteAllergyIndex(null);
+    }
   };
 
   const removeAllergy = (idx) => {
@@ -257,7 +274,7 @@ export default function PatientForm() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => removeAllergy(idx)}
+                      onClick={() => handleRequestRemoveAllergy(idx)}
                       className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
                       aria-label={t('Remove allergy')}
                     >
@@ -353,6 +370,22 @@ export default function PatientForm() {
           </div>
         </form>
       </Card>
+
+      <ConfirmDialog
+        open={deleteAllergyIndex !== null}
+        onClose={() => setDeleteAllergyIndex(null)}
+        onConfirm={confirmRemoveAllergy}
+        title={t('Remove Allergy Record?')}
+        message={
+          deleteAllergyIndex !== null && form.allergies[deleteAllergyIndex]?.name
+            ? t('Are you sure you want to remove the allergy record for {{name}}?', {
+                name: form.allergies[deleteAllergyIndex].name,
+              })
+            : t('Are you sure you want to remove this allergy entry?')
+        }
+        confirmText={t('Yes, Remove')}
+        tone="danger"
+      />
     </div>
   );
 }

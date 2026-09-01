@@ -1,0 +1,523 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMINISTRATOR
+  RECEPTIONIST
+  DOCTOR
+  LAB_TECHNICIAN
+  PROCEDURE_NURSE
+  PHARMACY
+}
+
+enum Priority {
+  NORMAL
+  URGENT
+  EMERGENCY
+}
+
+enum QueueStatus {
+  waiting
+  called
+  in_consultation
+  awaiting_results
+  ready_for_review
+  completed
+}
+
+enum ConsultationStatus {
+  in_progress
+  awaiting_results
+  ready_for_review
+  completed
+}
+
+model User {
+  id           String   @id
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  role         String
+  title        String?  @default("")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model Patient {
+  id                    String   @id
+  patientNumber         String   @unique @map("patient_number")
+  fullName              String   @map("full_name")
+  gender                String
+  dateOfBirth           String?  @map("date_of_birth")
+  phone                 String
+  address               String?  @default("")
+  emergencyContactName  String?  @default("") @map("emergency_contact_name")
+  emergencyContactPhone String?  @default("") @map("emergency_contact_phone")
+  relationshipToPatient String?  @default("") @map("relationship_to_patient")
+  allergies             Json?    @default("[]")
+  registrationDate      DateTime @default(now()) @map("registration_date")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  visits        Visit[]
+  queues        Queue[]
+  consultations Consultation[]
+  labRequests   LabRequest[]
+  procedures    Procedure[]
+  prescriptions Prescription[]
+
+  @@index([fullName])
+  @@index([phone])
+  @@index([patientNumber])
+  @@map("patients")
+}
+
+model Visit {
+  id          String   @id
+  visitNumber String   @unique @map("visit_number")
+  patientId   String   @map("patient_id")
+  service     String
+  reason      String?  @default("")
+  status      String   @default("active") // active, completed, cancelled
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  queues        Queue[]
+  consultations Consultation[]
+  labRequests   LabRequest[]
+  procedures    Procedure[]
+  prescriptions Prescription[]
+
+  @@index([patientId])
+  @@index([createdAt])
+  @@map("visits")
+}
+
+model Queue {
+  id          String    @id
+  queueNumber String    @map("queue_number")
+  visitId     String    @map("visit_id")
+  patientId   String    @map("patient_id")
+  department  String    @default("OPD")
+  queueStatus String    @default("waiting") @map("queue_status") // waiting, called, in_consultation, awaiting_results, ready_for_review, completed
+  priority    String    @default("NORMAL") // NORMAL, URGENT, EMERGENCY
+  createdAt   DateTime  @default(now()) @map("created_at")
+  calledAt    DateTime? @map("called_at")
+  completedAt DateTime? @map("completed_at")
+
+  visit   Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([visitId])
+  @@index([patientId])
+  @@index([department])
+  @@index([queueStatus])
+  @@index([createdAt])
+  @@map("queues")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  userName   String?  @map("user_name")
+  action     String   // AUTH_LOGIN, CREATE_PATIENT, CREATE_VISIT, CALL_QUEUE, UPDATE_QUEUE, etc.
+  entityType String   @map("entity_type") // USER, PATIENT, VISIT, QUEUE, CONSULTATION, SYSTEM
+  entityId   String?  @map("entity_id")
+  details    Json?    @default("{}")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Consultation {
+  id                      String   @id
+  consultationNumber      String   @map("consultation_number")
+  visitId                 String   @map("visit_id")
+  visitNumber             String   @map("visit_number")
+  patientId               String   @map("patient_id")
+  patientName             String   @map("patient_name")
+  doctor                  String
+  doctorId                String?  @default("U-DOCTOR") @map("doctor_id")
+  date                    DateTime @default(now())
+  status                  String   @default("in_progress") // in_progress, awaiting_results, ready_for_review, completed
+  vitals                  Json?    @default("{}") // temp, bpSystolic, bpDiastolic, pulse, respRate, weight, height, spo2, bmi, bmiCategory
+  chiefComplaint          String?  @default("") @map("chief_complaint")
+  medicalHistory          String?  @default("") @map("medical_history")
+  clinicalExamination     String?  @default("") @map("clinical_examination")
+  diagnosis               String?  @default("")
+  secondaryDiagnosis      String?  @default("") @map("secondary_diagnosis")
+  treatmentRecommendation String?  @default("") @map("treatment_recommendation")
+  doctorNotes             String?  @default("") @map("doctor_notes")
+  followUp                String?  @default("") @map("follow_up")
+  referral                Json?    @default("null")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  visit   Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([visitId])
+  @@index([patientId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("consultations")
+}
+
+model LabRequest {
+  id               String   @id
+  requestNumber    String   @map("request_number")
+  visitId          String   @map("visit_id")
+  visitNumber      String   @map("visit_number")
+  patientId        String   @map("patient_id")
+  patientName      String   @map("patient_name")
+  requestingDoctor String   @map("requesting_doctor")
+  date             DateTime @default(now())
+  tests            Json
+  status           String   @default("REQUESTED") // REQUESTED, AWAITING_PAYMENT, PAYMENT_VERIFIED, READY_FOR_LAB, SPECIMEN_COLLECTED, IN_PROGRESS, RESULT_RECEIVED, TECHNICIAN_VERIFIED, RELEASED_TO_DOCTOR, CANCELLED
+  paymentStatus    String   @default("UNPAID") @map("payment_status") // UNPAID, PARTIALLY_PAID, PAID, VERIFIED
+  sampleId         String?  @map("sample_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  visit   Visit      @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patient Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  result  LabResult?
+  samples LabSample[]
+
+  @@index([visitId])
+  @@index([patientId])
+  @@index([status])
+  @@map("lab_requests")
+}
+
+model LabSample {
+  id           String    @id
+  sampleNumber String    @unique @map("sample_number") // S-000001
+  requestId    String    @map("request_id")
+  patientId    String    @map("patient_id")
+  visitId      String    @map("visit_id")
+  specimenType String    @default("Whole Blood (EDTA)") @map("specimen_type") // Whole Blood, Serum, Plasma, Urine, Stool, Swab
+  barcode      String    @unique
+  status       String    @default("COLLECTED") // COLLECTED, RECEIVED_IN_LAB, PROCESSED, DISCARDED
+  collectedAt  DateTime  @default(now()) @map("collected_at")
+  collectedBy  String?   @map("collected_by")
+  notes        String?   @default("")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  request LabRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([patientId])
+  @@index([barcode])
+  @@map("lab_samples")
+}
+
+model LabResult {
+  id                 String    @id
+  requestId          String    @unique @map("request_id")
+  requestNumber      String    @map("request_number")
+  patientId          String    @map("patient_id")
+  visitId            String    @map("visit_id")
+  sampleId           String?   @map("sample_id")
+  status             String    @default("DRAFT") // DRAFT, RESULT_RECEIVED, TECHNICIAN_VERIFIED, RELEASED_TO_DOCTOR
+  date               DateTime  @default(now())
+  enteredAt          DateTime? @map("entered_at")
+  verifiedAt         DateTime? @map("verified_at")
+  releasedToDoctorAt DateTime? @map("released_to_doctor_at")
+  enteredBy          String?   @map("entered_by")
+  verifiedBy         String?   @map("verified_by")
+  releasedBy         String?   @map("released_by")
+  results            Json      @default("[]")
+  instrumentId       String?   @map("instrument_id")
+  instrumentName     String?   @map("instrument_name")
+  rawPayload         Json?     @map("raw_payload")
+  notes              String?   @default("")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  request LabRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([patientId])
+  @@index([status])
+  @@map("lab_results")
+}
+
+model LabDevice {
+  id             String    @id
+  deviceCode     String    @unique @map("device_code") // DEV-001
+  name           String
+  manufacturer   String?   @default("")
+  model          String?   @default("")
+  analyzerType   String    @default("CBC") @map("analyzer_type") // CBC, CHEMISTRY, IMMUNOLOGY, URINALYSIS
+  protocol       String    @default("HL7") // ASTM, HL7, JSON, CUSTOM
+  connectionType String    @default("TCP_IP") @map("connection_type") // LAN, TCP_IP, SERIAL_RS232, REST_API, OTHER
+  ipAddress      String?   @default("192.168.1.100") @map("ip_address")
+  port           Int?      @default(5100)
+  serialPort     String?   @default("COM1") @map("serial_port")
+  baudRate       Int?      @default(9600) @map("baud_rate")
+  parity         String?   @default("None")
+  dataBits       Int?      @default(8) @map("data_bits")
+  stopBits       Int?      @default(1) @map("stop_bits")
+  status         String    @default("ONLINE") // ONLINE, OFFLINE, SIMULATED, ERROR
+  mappings       Json?     @default("{}")
+  lastSyncAt     DateTime? @map("last_sync_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("lab_devices")
+}
+
+model Procedure {
+  id               String   @id
+  procedureNumber  String   @map("procedure_number")
+  visitId          String   @map("visit_id")
+  visitNumber      String   @map("visit_number")
+  patientId        String   @map("patient_id")
+  patientName      String   @map("patient_name")
+  requestingDoctor String   @map("requesting_doctor")
+  procedureType    String   @map("procedure_type")
+  notes            String?  @default("")
+  date             DateTime @default(now())
+  status           String   @default("requested")
+  paymentStatus    String   @default("UNPAID") @map("payment_status") // UNPAID, PARTIALLY_PAID, PAID, VERIFIED
+  recording        Json?    @default("null")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  visit   Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([visitId])
+  @@index([patientId])
+  @@map("procedures")
+}
+
+model InjectionOrder {
+  id              String   @id
+  orderNumber     String   @unique @map("order_number") // INJ-000001
+  patientId       String   @map("patient_id")
+  patientName     String   @map("patient_name")
+  visitId         String   @map("visit_id")
+  visitNumber     String   @map("visit_number")
+  doctorId        String?  @map("doctor_id")
+  doctorName      String   @map("doctor_name")
+  medication      String
+  prescribedDose  String   @map("prescribed_dose")
+  route           String   @default("IM") // IM, IV, SC, ID, OTHER
+  frequency       String   @default("STAT") // STAT, Q8H, BID, TID, QD, PRN
+  instructions    String?  @default("")
+  status          String   @default("ORDERED") // ORDERED, AWAITING_PAYMENT, AUTHORIZED, READY, ADMINISTERED, REFUSED, HELD, CANCELLED
+  paymentStatus   String   @default("UNPAID") @map("payment_status") // UNPAID, PARTIALLY_PAID, PAID, VERIFIED
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  administrations InjectionAdministration[]
+
+  @@index([visitId])
+  @@index([patientId])
+  @@index([status])
+  @@map("injection_orders")
+}
+
+model InjectionAdministration {
+  id                 String   @id
+  administrationNumber String @unique @map("administration_number") // ADM-000001
+  injectionOrderId   String   @map("injection_order_id")
+  actualMedication   String   @map("actual_medication")
+  actualDose         String   @map("actual_dose")
+  route              String   @default("IM")
+  administrationSite String   @map("administration_site") // Left Deltoid, Right Deltoid, Left Gluteal, Right Gluteal, etc.
+  administeredBy     String   @map("administered_by")
+  administeredById   String?  @map("administered_by_id")
+  administeredAt     DateTime @default(now()) @map("administered_at")
+  notes              String?  @default("")
+  status             String   @default("COMPLETED") // COMPLETED, REFUSED, HELD, ADVERSE_REACTION
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  order InjectionOrder @relation(fields: [injectionOrderId], references: [id], onDelete: Cascade)
+
+  @@index([injectionOrderId])
+  @@map("injection_administrations")
+}
+
+model Prescription {
+  id                 String    @id
+  prescriptionNumber String    @map("prescription_number")
+  visitId            String    @map("visit_id")
+  visitNumber        String    @map("visit_number")
+  patientId          String    @map("patient_id")
+  patientName        String    @map("patient_name")
+  doctor             String
+  date               DateTime  @default(now())
+  medicines          Json      @default("[]")
+  status             String    @default("completed") // PRESCRIBED, AWAITING_PAYMENT, AUTHORIZED, PARTIALLY_DISPENSED, DISPENSED, CANCELLED
+  paymentStatus      String    @default("UNPAID") @map("payment_status") // UNPAID, PARTIALLY_PAID, PAID, VERIFIED
+  dispensedBy        String?   @map("dispensed_by")
+  dispensedById      String?   @map("dispensed_by_id")
+  dispensedAt        DateTime? @map("dispensed_at")
+  dispensingNotes    String?   @default("") @map("dispensing_notes")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  visit   Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([visitId])
+  @@index([patientId])
+  @@index([status])
+  @@map("prescriptions")
+}
+
+model LabTest {
+  id             String @id
+  name           String
+  group          String
+  unit           String
+  referenceRange String @map("reference_range")
+
+  @@map("lab_tests")
+}
+
+model Medicine {
+  id            String  @id
+  name          String
+  form          String
+  defaultDosage String? @map("default_dosage")
+  defaultRoute  String? @map("default_route")
+
+  @@map("medicines")
+}
+
+model ProcedureType {
+  id   String @id
+  name String
+
+  @@map("procedure_types")
+}
+
+model Department {
+  id   String @id
+  name String
+
+  @@map("departments")
+}
+
+model RecycleBinItem {
+  id          String   @id
+  entityType  String   @map("entity_type") // USER, PATIENT, VISIT, PRESCRIPTION, LAB_REQUEST, PROCEDURE
+  entityId    String   @map("entity_id")
+  title       String
+  details     Json?    @default("{}")
+  data        Json
+  deletedBy   String?  @map("deleted_by")
+  deletedById String?  @map("deleted_by_id")
+  deletedAt   DateTime @default(now()) @map("deleted_at")
+  expiresAt   DateTime @map("expires_at")
+
+  @@index([entityType])
+  @@index([expiresAt])
+  @@map("recycle_bin")
+}
+
+model Invoice {
+  id            String   @id
+  invoiceNumber String   @unique @map("invoice_number")
+  patientId     String   @map("patient_id")
+  patientName   String   @map("patient_name")
+  visitId       String   @map("visit_id")
+  visitNumber   String   @map("visit_number")
+  totalAmount   Float    @default(0) @map("total_amount")
+  paidAmount    Float    @default(0) @map("paid_amount")
+  balance       Float    @default(0)
+  status        String   @default("UNPAID") // UNPAID, PARTIALLY_PAID, PAID, VERIFIED, CANCELLED, REFUNDED
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  items         InvoiceItem[]
+  payments      Payment[]
+  verifications PaymentVerification[]
+
+  @@index([patientId])
+  @@index([visitId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id                 String   @id
+  invoiceId          String   @map("invoice_id")
+  serviceType        String   @map("service_type") // LABORATORY, PROCEDURE, INJECTION, PHARMACY, CONSULTATION
+  serviceReferenceId String?  @map("service_reference_id")
+  description        String
+  quantity           Int      @default(1)
+  unitPrice          Float    @map("unit_price")
+  totalPrice         Float    @map("total_price")
+  status             String   @default("PENDING") // PENDING, PAID, VERIFIED, CANCELLED
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([serviceType])
+  @@map("invoice_items")
+}
+
+model Payment {
+  id            String   @id
+  paymentNumber String   @unique @map("payment_number")
+  invoiceId     String   @map("invoice_id")
+  amount        Float
+  paymentMethod String   @map("payment_method") // CASH, CARD, BANK, OTHER
+  receiptNumber String   @map("receipt_number")
+  receivedBy    String   @map("received_by")
+  receivedById  String?  @map("received_by_id")
+  receivedAt    DateTime @default(now()) @map("received_at")
+  status        String   @default("COMPLETED") // COMPLETED, CANCELLED, REFUNDED
+  notes         String?  @default("")
+
+  invoice       Invoice               @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  verifications PaymentVerification[]
+
+  @@index([invoiceId])
+  @@index([receiptNumber])
+  @@map("payments")
+}
+
+model PaymentVerification {
+  id           String   @id
+  invoiceId    String   @map("invoice_id")
+  paymentId    String?  @map("payment_id")
+  verifiedBy   String   @map("verified_by")
+  verifiedById String?  @map("verified_by_id")
+  verifiedAt   DateTime @default(now()) @map("verified_at")
+  notes        String?  @default("")
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@map("payment_verifications")
+}
+
+

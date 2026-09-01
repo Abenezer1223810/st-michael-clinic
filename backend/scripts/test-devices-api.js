@@ -67,7 +67,7 @@ async function main() {
 
   // 3. Verify that the lab request now has the machine-entered results
   const resultDoc = await call('GET', '/laboratory/requests/LR-0004/result', { token: labToken });
-  log(resultDoc.status === 200 && resultDoc.data.result.status === 'entered', 'analyzer results automatically populated in worklist');
+  log(resultDoc.status === 200 && (resultDoc.data.result.status === 'RESULT_RECEIVED' || resultDoc.data.result.status === 'entered'), 'analyzer results automatically populated in worklist');
 
   // 4. Simulate HL7 v2 transmission from Chemistry Analyzer (via raw text stream)
   const hl7Message = `MSH|^~\\&|Cobas_c311|ROCHE|LIS|CLINIC|20260901110000||ORU^R01|MSG0001|P|2.3.1

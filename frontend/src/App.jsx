@@ -18,13 +18,18 @@ import Consultation from './pages/opd/Consultation';
 import LaboratoryDashboard from './pages/laboratory/LaboratoryDashboard';
 import LabRequests from './pages/laboratory/LabRequests';
 import LabWorklist from './pages/laboratory/LabWorklist';
+import LabDevices from './pages/laboratory/LabDevices';
 import ProcedureDashboard from './pages/procedures/ProcedureDashboard';
 import ProcedureDetail from './pages/procedures/ProcedureDetail';
 import PrescriptionList from './pages/prescriptions/PrescriptionList';
 import PrescriptionDetail from './pages/prescriptions/PrescriptionDetail';
 import Reports from './pages/reports/Reports';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminCatalog from './pages/admin/AdminCatalog';
 import AdminSystem from './pages/admin/AdminSystem';
+import BillingDashboard from './pages/billing/BillingDashboard';
+import BillingDetail from './pages/billing/BillingDetail';
+import RecycleBinPage from './pages/recycle/RecycleBinPage';
 
 function Protected({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -50,13 +55,14 @@ function AllowedRoles({ roles, children }) {
 
 const ROLES = {
   reception: ['administrator', 'receptionist'],
-  clinicalRead: ['administrator', 'receptionist', 'doctor'],
-  patients: ['administrator', 'receptionist', 'doctor', 'laboratory'],
-  queue: ['administrator', 'receptionist'],
+  clinicalRead: ['administrator', 'receptionist', 'doctor', 'pharmacy'],
+  patients: ['administrator', 'receptionist', 'doctor', 'laboratory', 'procedure', 'pharmacy'],
+  queue: ['administrator', 'receptionist', 'doctor'],
   doctor: ['administrator', 'doctor'],
   laboratory: ['administrator', 'laboratory'],
   labView: ['administrator', 'laboratory', 'doctor'],
   procedure: ['administrator', 'procedure'],
+  pharmacy: ['administrator', 'pharmacy', 'doctor'],
   administrator: ['administrator'],
 };
 
@@ -90,17 +96,24 @@ export default function App() {
         <Route path="laboratory" element={<AllowedRoles roles={ROLES.laboratory}><LaboratoryDashboard /></AllowedRoles>} />
         <Route path="laboratory/requests" element={<AllowedRoles roles={ROLES.laboratory}><LabRequests /></AllowedRoles>} />
         <Route path="laboratory/requests/:id" element={<AllowedRoles roles={ROLES.labView}><LabWorklist /></AllowedRoles>} />
+        <Route path="laboratory/devices" element={<AllowedRoles roles={ROLES.laboratory}><LabDevices /></AllowedRoles>} />
 
         <Route path="procedures" element={<AllowedRoles roles={ROLES.procedure}><ProcedureDashboard /></AllowedRoles>} />
         <Route path="procedures/:id" element={<AllowedRoles roles={ROLES.procedure}><ProcedureDetail /></AllowedRoles>} />
 
-        <Route path="prescriptions" element={<AllowedRoles roles={ROLES.doctor}><PrescriptionList /></AllowedRoles>} />
-        <Route path="prescriptions/:id" element={<AllowedRoles roles={ROLES.doctor}><PrescriptionDetail /></AllowedRoles>} />
+        <Route path="prescriptions" element={<AllowedRoles roles={ROLES.pharmacy}><PrescriptionList /></AllowedRoles>} />
+        <Route path="prescriptions/:id" element={<AllowedRoles roles={ROLES.pharmacy}><PrescriptionDetail /></AllowedRoles>} />
 
         <Route path="reports" element={<Reports />} />
 
+        <Route path="billing" element={<AllowedRoles roles={['administrator', 'receptionist']}><BillingDashboard /></AllowedRoles>} />
+        <Route path="billing/:id" element={<AllowedRoles roles={['administrator', 'receptionist']}><BillingDetail /></AllowedRoles>} />
+
         <Route path="admin" element={<AllowedRoles roles={ROLES.administrator}><AdminUsers /></AllowedRoles>} />
+        <Route path="admin/catalog" element={<AllowedRoles roles={ROLES.administrator}><AdminCatalog /></AllowedRoles>} />
         <Route path="admin/system" element={<AllowedRoles roles={ROLES.administrator}><AdminSystem /></AllowedRoles>} />
+
+        <Route path="recycle-bin" element={<RecycleBinPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

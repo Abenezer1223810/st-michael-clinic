@@ -1,8 +1,8 @@
 import { db } from '../db/index.js';
 
 export const listPrescriptions = async (req, res) => {
-  const { patientId } = req.query;
-  const prescriptions = await db.listPrescriptions(patientId);
+  const { patientId, status } = req.query;
+  const prescriptions = await db.listPrescriptions(patientId, status, req.user?.role);
   res.json({ prescriptions });
 };
 
@@ -24,4 +24,14 @@ export const createPrescription = async (req, res) => {
 
   const prescription = await db.createPrescription({ visitId, medicines }, req.user);
   res.status(201).json({ prescription, message: 'Prescription created.' });
+};
+
+export const dispensePrescription = async (req, res) => {
+  try {
+    const { items, notes } = req.body || {};
+    const result = await db.dispensePrescription(req.params.id, { items, notes }, req.user);
+    res.json({ ...result, message: 'Medications dispensed successfully.' });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ message: err.message });
+  }
 };

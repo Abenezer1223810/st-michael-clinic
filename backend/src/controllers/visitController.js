@@ -20,7 +20,7 @@ export const createVisit = async (req, res) => {
   const patient = await db.getPatient(patientId);
   if (!patient) return res.status(404).json({ message: 'Patient ID not found. Please check the ID and try again.' });
 
-  const visit = await db.createVisit({ patientId, service, reason });
+  const visit = await db.createVisit({ patientId, service, reason }, req.user);
   res.status(201).json({
     visit,
     message: 'Visit created successfully.',

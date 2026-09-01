@@ -51,17 +51,20 @@ export const createPatient = async (req, res) => {
     return res.status(400).json({ message: 'Date of birth must be YYYY-MM-DD.' });
   }
 
-  const patient = await db.createPatient({
-    fullName,
-    gender,
-    dateOfBirth: dob,
-    phone,
-    address,
-    emergencyContactName,
-    emergencyContactPhone,
-    relationshipToPatient,
-    allergies: normalizeAllergies(allergies),
-  });
+  const patient = await db.createPatient(
+    {
+      fullName,
+      gender,
+      dateOfBirth: dob,
+      phone,
+      address,
+      emergencyContactName,
+      emergencyContactPhone,
+      relationshipToPatient,
+      allergies: normalizeAllergies(allergies),
+    },
+    req.user
+  );
 
   res.status(201).json({ patient, message: 'Patient registered successfully.' });
 };
@@ -72,4 +75,12 @@ export const getPatientHistory = async (req, res) => {
     return res.status(404).json({ message: 'Patient ID not found. Please check the ID and try again.' });
   }
   res.json(history);
+};
+
+export const getPatientTimeline = async (req, res) => {
+  const timeline = await db.getPatientTimeline(req.params.id);
+  if (!timeline) {
+    return res.status(404).json({ message: 'Patient ID not found. Please check the ID and try again.' });
+  }
+  res.json(timeline);
 };

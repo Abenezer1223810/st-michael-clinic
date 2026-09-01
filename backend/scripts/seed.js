@@ -1,12 +1,25 @@
 import pkg from '@prisma/client';
 const PrismaClient = pkg?.PrismaClient || pkg?.default?.PrismaClient;
+import bcrypt from 'bcryptjs';
 import { buildSeed } from '../src/data/seed.js';
 import { DEFAULT_DEVICE_MAPPINGS } from '../src/services/analyzerParser.js';
 
-const prisma = new PrismaClient();
+let prisma;
+if (PrismaClient) {
+  try {
+    prisma = new PrismaClient();
+  } catch (e) {
+    console.warn('Prisma instantiation warning in seed:', e.message);
+  }
+}
 
 export async function seedDatabase(customPrisma) {
   const db = customPrisma || prisma;
+  if (!db) {
+    console.log('Prisma client not available. In-memory state will be used.');
+    return;
+  }
+
   const seed = buildSeed();
 
   console.log('Seeding PostgreSQL database for St. Michael Medium Clinic...');
@@ -14,6 +27,7 @@ export async function seedDatabase(customPrisma) {
   // 1. Clear existing data in correct FK order
   await db.$executeRawUnsafe(`
     TRUNCATE TABLE 
+      "audit_logs",
       "queues",
       "consultations",
       "lab_results",
@@ -102,23 +116,26 @@ export async function seedDatabase(customPrisma) {
     ],
   });
 
-  // 4. Users
+  // 4. Users (with bcrypt hashed passwords)
+  const hashedUsers = seed.users.map((u) => ({
+    id: u.id,
+    username: u.username.toLowerCase(),
+    passwordHash: bcrypt.hashSync(u.password, 10),
+    fullName: u.name,
+    role: u.role,
+    title: u.title || '',
+    active: true,
+  }));
+
   await db.user.createMany({
-    data: seed.users.map((u) => ({
-      id: u.id,
-      username: u.username,
-      password: u.password,
-      name: u.name,
-      role: u.role,
-      title: u.title || '',
-      banned: false,
-    })),
+    data: hashedUsers,
   });
 
   // 5. Patients
   await db.patient.createMany({
     data: seed.patients.map((p) => ({
       id: p.id,
+      patientNumber: p.patientNumber || p.id,
       fullName: p.fullName,
       gender: p.gender,
       dateOfBirth: p.dateOfBirth || null,
@@ -139,12 +156,10 @@ export async function seedDatabase(customPrisma) {
       id: v.id,
       visitNumber: v.visitNumber,
       patientId: v.patientId,
-      patientName: v.patientName,
       service: v.service,
       reason: v.reason || '',
-      date: new Date(v.date),
       status: v.status || 'completed',
-      createdAt: new Date(v.createdAt),
+      createdAt: new Date(v.createdAt || v.date),
     })),
   });
 
@@ -154,13 +169,13 @@ export async function seedDatabase(customPrisma) {
       id: q.id,
       queueNumber: q.queueNumber,
       visitId: q.visitId,
-      visitNumber: q.visitNumber,
       patientId: q.patientId,
-      patientName: q.patientName,
-      service: q.service,
-      time: new Date(q.time),
-      date: q.date,
-      status: q.status || 'waiting',
+      department: q.department || 'OPD',
+      queueStatus: q.status || 'waiting',
+      priority: q.priority || 'NORMAL',
+      createdAt: new Date(q.time),
+      calledAt: q.calledAt ? new Date(q.calledAt) : null,
+      completedAt: q.completedAt ? new Date(q.completedAt) : null,
     })),
   });
 
@@ -257,6 +272,20 @@ export async function seedDatabase(customPrisma) {
     })),
   });
 
+  // 13. Initial Audit Log
+  await db.auditLog.create({
+    data: {
+      id: 'AUD-000001',
+      userId: 'U-ADMIN',
+      userName: 'Amanuel Berhe',
+      action: 'SYSTEM_INITIALIZED',
+      entityType: 'SYSTEM',
+      entityId: 'SYSTEM',
+      details: { version: '1.0.0-phase1', seedPatients: seed.patients.length },
+      createdAt: new Date(),
+    },
+  });
+
   console.log('PostgreSQL database seeded successfully with full demo and catalog data.');
 }
 
@@ -267,6 +296,6 @@ if (process.argv[1] && process.argv[1].endsWith('seed.js')) {
       process.exit(1);
     })
     .finally(async () => {
-      await prisma.$disconnect();
+      if (prisma) await prisma.$disconnect();
     });
 }

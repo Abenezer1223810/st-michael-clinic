@@ -11,4 +11,8 @@ export const visitService = {
   },
   get: (id) => api.get(`/visits/${id}`),
   create: (data) => api.post('/visits', data),
+  getClosureCheck: (id) => api.get(`/visits/${id}/closure-check`),
+  close: (id, data) => api.post(`/visits/${id}/close`, data),
+  getSummary: (id) => api.get(`/visits/${id}/summary`),
+  timeline: (id) => api.get(`/visits/${id}/timeline`),
 };

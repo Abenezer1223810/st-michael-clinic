@@ -25,12 +25,12 @@ import {
   Home,
   PanelLeftClose,
   PanelLeftOpen,
+  ArchiveRestore,
+  CreditCard,
+  Cpu,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { useDemo } from '../../context/DemoContext';
-import { DemoBanner } from '../demo/DemoBanner';
-import { DemoPanel } from '../demo/DemoPanel';
 import { ShortcutsModal } from './ShortcutsModal';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { ErrorBoundary } from '../ErrorBoundary';
@@ -38,8 +38,8 @@ import { StethoscopePattern } from '../ui/StethoscopePattern';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 
 const NAV = [
-  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard, roles: ['administrator', 'receptionist', 'doctor', 'laboratory', 'procedure'] },
-  { label: 'Patients', to: '/patients', icon: Users, roles: ['administrator', 'receptionist', 'doctor', 'laboratory'] },
+  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard, roles: ['administrator', 'receptionist', 'doctor', 'laboratory', 'procedure', 'pharmacy'] },
+  { label: 'Patients', to: '/patients', icon: Users, roles: ['administrator', 'receptionist', 'doctor', 'laboratory', 'procedure', 'pharmacy'] },
   {
     label: 'Reception',
     roles: ['administrator', 'receptionist'],
@@ -47,18 +47,30 @@ const NAV = [
       { label: 'New Patient', to: '/patients/new', icon: UserPlus },
       { label: 'Visits', to: '/visits', icon: CalendarPlus },
       { label: 'Queue', to: '/queue', icon: ListOrdered },
+      { label: 'Billing & Cashier', to: '/billing', icon: CreditCard },
     ],
   },
   { label: 'OPD', to: '/opd', icon: Stethoscope, roles: ['administrator', 'doctor'] },
-  { label: 'Laboratory', to: '/laboratory', icon: FlaskConical, roles: ['administrator', 'laboratory'] },
+  {
+    label: 'Laboratory',
+    roles: ['administrator', 'laboratory'],
+    children: [
+      { label: 'Workstation', to: '/laboratory', icon: FlaskConical },
+      { label: 'Requests & Samples', to: '/laboratory/requests', icon: ListOrdered },
+      { label: 'Analyzers & Simulator', to: '/laboratory/devices', icon: Cpu },
+    ],
+  },
   { label: 'Procedures', to: '/procedures', icon: Syringe, roles: ['administrator', 'procedure'] },
-  { label: 'Prescriptions', to: '/prescriptions', icon: Pill, roles: ['administrator', 'doctor'] },
-  { label: 'Reports', to: '/reports', icon: BarChart3, roles: ['administrator', 'receptionist', 'doctor', 'laboratory', 'procedure'] },
+  { label: 'Prescriptions', to: '/prescriptions', icon: Pill, roles: ['administrator', 'pharmacy', 'doctor'] },
+  { label: 'Billing & Payments', to: '/billing', icon: CreditCard, roles: ['administrator', 'receptionist'] },
+  { label: 'Reports', to: '/reports', icon: BarChart3, roles: ['administrator', 'receptionist', 'doctor', 'laboratory', 'procedure', 'pharmacy'] },
+  { label: 'Recycle Bin', to: '/recycle-bin', icon: ArchiveRestore, roles: ['administrator', 'receptionist', 'doctor', 'laboratory', 'procedure', 'pharmacy'] },
   {
     label: 'Administration',
     roles: ['administrator'],
     children: [
       { label: 'Users & Roles', to: '/admin', icon: Users },
+      { label: 'Catalog & Pricing', to: '/admin/catalog', icon: CreditCard },
       { label: 'System', to: '/admin/system', icon: Settings },
     ],
   },
@@ -70,6 +82,7 @@ const ROLE_LABEL = {
   doctor: 'Doctor',
   laboratory: 'Laboratory Staff',
   procedure: 'Procedure Staff',
+  pharmacy: 'Pharmacy Staff',
 };
 
 function SidebarContent({ user, logout, onNavigate, collapsed = false }) {
@@ -85,36 +98,52 @@ function SidebarContent({ user, logout, onNavigate, collapsed = false }) {
     return item.roles.includes(user.role) ? item : null;
   }).filter(Boolean);
 
+  const navItemCls = (isActive) =>
+    [
+      'relative mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 outline-none',
+      collapsed ? 'justify-center px-2' : '',
+      isActive
+        ? light
+          ? 'bg-brand-50 text-brand-700 shadow-sm ring-1 ring-brand-200/60'
+          : 'bg-white/10 text-white shadow-sm ring-1 ring-white/10'
+        : light
+          ? 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+          : 'text-slate-300 hover:bg-white/6 hover:text-white',
+    ].join(' ');
+
   return (
     <div className="relative flex h-full flex-col">
-      {/* Stethoscope pattern overlay */}
+      {/* Pattern overlay */}
       <div className="pointer-events-none absolute inset-0">
-        <StethoscopePattern stroke={light ? '#94a3b8' : 'white'} opacity={light ? 0.14 : 0.06} id="sidebar-pattern" />
+        <StethoscopePattern stroke={light ? '#94a3b8' : 'white'} opacity={light ? 0.10 : 0.05} id="sidebar-pattern" />
       </div>
-
-      {/* Decorative glows */}
+      {/* Glows */}
       <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-brand-400/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-brand-400/8 blur-3xl" />
 
-      <div className={`relative flex items-center gap-3 border-b px-5 py-5 ${light ? 'border-slate-200' : 'border-white/10'} ${collapsed ? 'justify-center px-0' : ''}`}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-blue-600 text-white shadow-lg shadow-brand-500/40 ring-1 ring-white/20">
+      {/* Logo */}
+      <div className={`relative flex items-center gap-3 border-b px-5 py-5 ${light ? 'border-slate-200' : 'border-white/8'} ${collapsed ? 'justify-center px-0' : ''}`}>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-blue-600 text-white shadow-lg shadow-brand-500/40 ring-2 ring-white/20">
           <HeartPulse className="h-5 w-5" />
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className={`truncate text-sm font-bold ${light ? 'text-slate-900' : 'text-white'}`}>{t('St. Michael')}</p>
-            <p className={`truncate text-xs ${light ? 'text-brand-700' : 'text-cyan-200/70'}`}>{t('Medium Clinic')}</p>
+            <p className={`truncate text-sm font-bold tracking-tight ${light ? 'text-slate-900' : 'text-white'}`}>{t('St. Michael')}</p>
+            <p className={`truncate text-[9px] font-bold uppercase tracking-widest ${light ? 'text-brand-600' : 'text-cyan-300/60'}`}>{t('Medium Clinic · HMS')}</p>
           </div>
         )}
       </div>
 
-      <nav className="relative flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      {/* Nav */}
+      <nav className="relative flex-1 space-y-0.5 overflow-y-auto px-2.5 py-3">
         {items.map((item) =>
           item.children ? (
             <div key={item.label}>
               {!collapsed && (
-                <p className={`px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-widest ${light ? 'text-slate-400' : 'text-white/40'}`}>
+                <p className={`flex items-center gap-2 px-2 pb-1.5 pt-3 text-[9px] font-bold uppercase tracking-widest ${light ? 'text-slate-400' : 'text-white/30'}`}>
+                  <span className={`h-px flex-1 ${light ? 'bg-slate-200' : 'bg-white/10'}`} />
                   {t(item.label)}
+                  <span className={`h-px flex-1 ${light ? 'bg-slate-200' : 'bg-white/10'}`} />
                 </p>
               )}
               {item.children.map((child) => (
@@ -124,20 +153,15 @@ function SidebarContent({ user, logout, onNavigate, collapsed = false }) {
                   onClick={onNavigate}
                   title={t(child.label)}
                   aria-label={t(child.label)}
-                  className={({ isActive }) =>
-                    `mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
-                      collapsed ? 'justify-center' : ''
-                    } ${
-                      isActive
-                        ? 'bg-gradient-to-r from-brand-500/90 to-cyan-600/90 text-white shadow-lg shadow-brand-500/25'
-                        : light
-                          ? 'text-slate-600 hover:bg-brand-50 hover:text-slate-900'
-                          : 'text-slate-200 hover:bg-white/5 hover:text-white'
-                    }`
-                  }
+                  className={({ isActive }) => navItemCls(isActive)}
                 >
-                  <child.icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && t(child.label)}
+                  {({ isActive }) => (
+                    <>
+                      {isActive && <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-brand-500" />}
+                      <child.icon className={`h-4 w-4 shrink-0 transition-colors ${isActive ? 'text-brand-600 dark:text-brand-400' : ''}`} />
+                      {!collapsed && <span className="truncate">{t(child.label)}</span>}
+                    </>
+                  )}
                 </NavLink>
               ))}
             </div>
@@ -148,34 +172,42 @@ function SidebarContent({ user, logout, onNavigate, collapsed = false }) {
               onClick={onNavigate}
               title={t(item.label)}
               aria-label={t(item.label)}
-              className={({ isActive }) =>
-                `mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
-                  collapsed ? 'justify-center' : ''
-                } ${
-                  isActive
-                    ? 'bg-gradient-to-r from-brand-500/90 to-cyan-600/90 text-white shadow-lg shadow-brand-500/25'
-                    : light
-                      ? 'text-slate-600 hover:bg-brand-50 hover:text-slate-900'
-                      : 'text-slate-200 hover:bg-white/5 hover:text-white'
-                }`
-              }
+              className={({ isActive }) => navItemCls(isActive)}
             >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && t(item.label)}
+              {({ isActive }) => (
+                <>
+                  {isActive && <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-brand-500" />}
+                  <item.icon className={`h-4 w-4 shrink-0 transition-colors ${isActive ? 'text-brand-600 dark:text-brand-400' : ''}`} />
+                  {!collapsed && <span className="truncate">{t(item.label)}</span>}
+                </>
+              )}
             </NavLink>
           )
         )}
       </nav>
 
-      <div className={`relative border-t px-4 py-4 ${light ? 'border-slate-200' : 'border-white/10'}`}>
-        <div className={`mb-3 flex items-center gap-3 rounded-xl p-2.5 ring-1 ${light ? 'bg-slate-100 ring-slate-200' : 'bg-white/5 ring-white/10'} ${collapsed ? 'justify-center p-1.5' : ''}`}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-blue-600 text-sm font-bold text-white shadow-md">
-            {user.name.charAt(0)}
+      {/* User block */}
+      <div className={`relative border-t px-3 py-3 ${light ? 'border-slate-200' : 'border-white/8'}`}>
+        <div className={`mb-2 flex items-center gap-3 rounded-xl p-2.5 ring-1 ${light ? 'bg-slate-50 ring-slate-200/60' : 'bg-white/5 ring-white/8'} ${collapsed ? 'justify-center p-1.5' : ''}`}>
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-blue-600 text-sm font-bold text-white shadow-md ring-2 ring-white/20">
+            {user.name.charAt(0).toUpperCase()}
           </div>
           {!collapsed && (
-            <div className="min-w-0">
-              <p className={`truncate text-sm font-medium ${light ? 'text-slate-800' : 'text-white'}`}>{user.name}</p>
-              <p className={`truncate text-xs ${light ? 'text-slate-500' : 'text-cyan-200/70'}`}>{t(ROLE_LABEL[user.role])}</p>
+            <div className="min-w-0 flex-1">
+              <p className={`truncate text-sm font-semibold ${light ? 'text-slate-800' : 'text-white'}`}>{user.name}</p>
+              <span className={`mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                user.role === 'administrator'
+                  ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'
+                  : user.role === 'doctor'
+                  ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+                  : user.role === 'laboratory'
+                  ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300'
+                  : user.role === 'pharmacy'
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                  : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+              }`}>
+                {t(ROLE_LABEL[user.role])}
+              </span>
             </div>
           )}
         </div>
@@ -183,10 +215,12 @@ function SidebarContent({ user, logout, onNavigate, collapsed = false }) {
           onClick={logout}
           title={t('Logout')}
           aria-label={t('Logout')}
-          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
+          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 active:scale-[0.98] ${
             collapsed ? 'justify-center px-0' : ''
           } ${
-            light ? 'text-slate-500 hover:bg-rose-50 hover:text-rose-600' : 'text-slate-300 hover:bg-rose-500/15 hover:text-rose-300'
+            light
+              ? 'text-slate-500 hover:bg-rose-50 hover:text-rose-600'
+              : 'text-slate-400 hover:bg-rose-500/12 hover:text-rose-300'
           }`}
         >
           <LogOut className="h-4 w-4 shrink-0" />
@@ -201,7 +235,6 @@ export function AppLayout() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const { theme, toggle, contrast, toggleContrast } = useTheme();
-  const demo = useDemo();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -347,7 +380,6 @@ export function AppLayout() {
         </header>
 
         <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          {demo.active && <DemoBanner />}
           <nav aria-label={t('Breadcrumb')} className="mb-4 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
             {crumbs.map((c, i) => (
               <span key={i} className="flex items-center gap-1.5">
@@ -376,7 +408,6 @@ export function AppLayout() {
       </div>
 
       <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      {demo.active && demo.panelOpen && <DemoPanel />}
     </div>
   );
 }

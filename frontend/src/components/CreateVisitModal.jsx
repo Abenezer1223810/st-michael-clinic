@@ -14,6 +14,7 @@ export function CreateVisitModal({ open, onClose, patient, onCreated }) {
   const toast = useToast();
   const [service, setService] = useState('OPD');
   const [reason, setReason] = useState('');
+  const [priority, setPriority] = useState('NORMAL');
   const [addToQueue, setAddToQueue] = useState(true);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -22,6 +23,7 @@ export function CreateVisitModal({ open, onClose, patient, onCreated }) {
     if (open) {
       setService('OPD');
       setReason('');
+      setPriority('NORMAL');
       setAddToQueue(true);
       setErrors({});
     }
@@ -45,7 +47,7 @@ export function CreateVisitModal({ open, onClose, patient, onCreated }) {
       toast.success(message ? t(message) : t('Visit created successfully.'));
       if (addToQueue) {
         try {
-          const q = await queueService.add(visit.id);
+          const q = await queueService.add(visit.id, priority);
           toast.success(q.message ? t(q.message) : t('Patient added to OPD queue.'));
         } catch (e) {
           toast.error(e.message ? t(e.message) : e.message);
@@ -97,15 +99,28 @@ export function CreateVisitModal({ open, onClose, patient, onCreated }) {
             placeholder={t('e.g. Fever and headache for 2 days')}
           />
         </Field>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={addToQueue}
-            onChange={(e) => setAddToQueue(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-          />
-          {t('Add patient to OPD queue')}
-        </label>
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+            <input
+              type="checkbox"
+              checked={addToQueue}
+              onChange={(e) => setAddToQueue(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            {t('Add patient to OPD queue')}
+          </label>
+          {addToQueue && (
+            <div className="mt-3">
+              <Field label={t('Queue Priority')}>
+                <select className="input" value={priority} onChange={(e) => setPriority(e.target.value)}>
+                  <option value="NORMAL">{t('Normal')}</option>
+                  <option value="URGENT">{t('Urgent')}</option>
+                  <option value="EMERGENCY">{t('Emergency')}</option>
+                </select>
+              </Field>
+            </div>
+          )}
+        </div>
         {errors.form && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{t(errors.form)}</p>}
       </div>
     </Modal>

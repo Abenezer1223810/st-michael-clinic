@@ -2,7 +2,7 @@ import { db } from '../db/index.js';
 
 export const listProcedures = async (req, res) => {
   const { status } = req.query;
-  const procedures = await db.listProcedures(status);
+  const procedures = await db.listProcedures(status, req.user?.role);
   res.json({ procedures });
 };
 
@@ -38,8 +38,11 @@ export const updateProcedureStatus = async (req, res) => {
 };
 
 export const recordProcedure = async (req, res) => {
-  const procedure = await db.recordProcedure(req.params.id, req.body || {}, req.user);
-  if (!procedure) return res.status(404).json({ message: 'Procedure not found.' });
-
-  res.json({ procedure, message: 'Procedure completed.' });
+  try {
+    const procedure = await db.recordProcedure(req.params.id, req.body || {}, req.user);
+    if (!procedure) return res.status(404).json({ message: 'Procedure not found.' });
+    res.json({ procedure, message: 'Procedure completed.' });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ message: err.message });
+  }
 };

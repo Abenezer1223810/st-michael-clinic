@@ -1,4 +1,4 @@
-import { users, labTests, medicines, procedureTypes, departments } from './catalog.js';
+import { users, labTests, defaultLabDevices, medicines, procedureTypes, departments } from './catalog.js';
 import {
   nextPatientId,
   nextVisitNumber,
@@ -7,6 +7,9 @@ import {
   nextLaboratoryRequestNumber,
   nextPrescriptionNumber,
   nextProcedureNumber,
+  nextSampleNumber,
+  nextInjectionOrderNumber,
+  nextInjectionAdminNumber,
   resetCounters,
 } from '../utils/idGenerator.js';
 import { daysAgo, minutesAgo, now } from '../utils/helpers.js';
@@ -14,20 +17,24 @@ import { daysAgo, minutesAgo, now } from '../utils/helpers.js';
 const testById = (id) => labTests.find((t) => t.id === id);
 const medByName = (name) => medicines.find((m) => m.name === name);
 
-const mkPatient = ({ fullName, gender, dateOfBirth, phone, address, regAgo, emergencyContactName = '', emergencyContactPhone = '', relationshipToPatient = '', allergies = [] }) => ({
-  id: nextPatientId(),
-  fullName,
-  gender,
-  dateOfBirth,
-  phone,
-  address,
-  emergencyContactName,
-  emergencyContactPhone,
-  relationshipToPatient,
-  allergies,
-  registrationDate: daysAgo(regAgo, 8, 15),
-  createdAt: daysAgo(regAgo, 8, 15),
-});
+const mkPatient = ({ fullName, gender, dateOfBirth, phone, address, regAgo, emergencyContactName = '', emergencyContactPhone = '', relationshipToPatient = '', allergies = [] }) => {
+  const id = nextPatientId();
+  return {
+    id,
+    patientNumber: id,
+    fullName,
+    gender,
+    dateOfBirth,
+    phone,
+    address,
+    emergencyContactName,
+    emergencyContactPhone,
+    relationshipToPatient,
+    allergies,
+    registrationDate: daysAgo(regAgo, 8, 15),
+    createdAt: daysAgo(regAgo, 8, 15),
+  };
+};
 
 const mkVisit = ({ patient, service, reason, ago, status = 'completed', hour = 9, minute = 30 }) => {
   const num = nextVisitNumber();
@@ -524,10 +531,83 @@ export function buildSeed() {
     }),
   ];
 
+  // ---------------------------------------------------------------- injection orders & administrations
+  const injectionOrders = [];
+  const injectionAdministrations = [];
+
+  const mkInjection = ({ visit, patient, doctor = 'Dr. Dawit Alemu', medication, prescribedDose, route = 'IM', frequency = 'STAT', instructions = '', ago = 0, status = 'ADMINISTERED', adminDetails = null }) => {
+    const num = nextInjectionOrderNumber();
+    const order = {
+      id: `INJ-${num.slice(4)}`,
+      orderNumber: num,
+      patientId: patient.id,
+      patientName: patient.fullName,
+      visitId: visit.id,
+      visitNumber: visit.visitNumber,
+      doctorId: 'U-003',
+      doctorName: doctor,
+      medication,
+      prescribedDose,
+      route,
+      frequency,
+      instructions,
+      status,
+      paymentStatus: 'VERIFIED',
+      createdAt: daysAgo(ago, 10, 15),
+      updatedAt: daysAgo(ago, 10, 30),
+    };
+    injectionOrders.push(order);
+
+    if (adminDetails && status === 'ADMINISTERED') {
+      const aNum = nextInjectionAdminNumber();
+      const adm = {
+        id: `ADM-${aNum.slice(4)}`,
+        administrationNumber: aNum,
+        injectionOrderId: order.id,
+        actualMedication: adminDetails.actualMedication || medication,
+        actualDose: adminDetails.actualDose || prescribedDose,
+        route: adminDetails.route || route,
+        administrationSite: adminDetails.site || 'Left Deltoid',
+        administeredBy: adminDetails.performer || 'Sister Tigist',
+        administeredById: 'U-005',
+        administeredAt: daysAgo(ago, 10, 30),
+        notes: adminDetails.notes || 'Administered with standard aseptic technique. No adverse events observed.',
+        status: 'COMPLETED',
+        createdAt: daysAgo(ago, 10, 30),
+      };
+      injectionAdministrations.push(adm);
+    }
+    return order;
+  };
+
+  mkInjection({
+    visit: V.v1, patient: P.abebe, ago: 12,
+    medication: 'Diclofenac 75mg/3ml', prescribedDose: '75mg IM STAT', route: 'IM', frequency: 'STAT',
+    instructions: 'Deep intragluteal injection for acute severe joint pain',
+    status: 'ADMINISTERED',
+    adminDetails: { actualMedication: 'Diclofenac 75mg', actualDose: '75mg', route: 'IM', site: 'Right Gluteal (Upper Outer Quadrant)', performer: 'Sister Tigist' },
+  });
+
+  mkInjection({
+    visit: V.v9, patient: P.berhanu, ago: 0,
+    medication: 'Ceftriaxone 1g IV', prescribedDose: '1g IV STAT in 100ml NS', route: 'IV', frequency: 'STAT',
+    instructions: 'Reconstitute with 10ml sterile water, infuse over 30 mins',
+    status: 'ADMINISTERED',
+    adminDetails: { actualMedication: 'Ceftriaxone 1g', actualDose: '1g in 100ml NS', route: 'IV', site: 'IV Cannula - Left Forearm', performer: 'Nurse Kebede' },
+  });
+
+  mkInjection({
+    visit: V.v4, patient: P.girma, ago: 3,
+    medication: 'Artemether 80mg IM', prescribedDose: '80mg IM', route: 'IM', frequency: 'OD x 3 days',
+    instructions: 'Alternate gluteal sites daily',
+    status: 'ADMINISTERED',
+    adminDetails: { actualMedication: 'Artemether 80mg', actualDose: '80mg', route: 'IM', site: 'Left Gluteal', performer: 'Sister Tigist' },
+  });
+
   // ---------------------------------------------------------------- queue (today)
   const queue = [];
   {
-    const mkQueue = ({ visit, patient, minutesAgoN, status, service }) => {
+    const mkQueue = ({ visit, patient, minutesAgoN, status, service, priority = 'NORMAL' }) => {
       const qnum = nextQueueNumber();
       return {
         id: `Q-${qnum}`,
@@ -537,17 +617,175 @@ export function buildSeed() {
         patientId: patient.id,
         patientName: patient.fullName,
         service,
+        department: 'OPD',
+        priority,
         time: minutesAgo(minutesAgoN),
         date: daysAgo(0),
         status,
+        calledAt: status === 'in_consultation' || status === 'called' ? minutesAgo(minutesAgoN - 5) : null,
+        completedAt: status === 'completed' ? minutesAgo(minutesAgoN - 20) : null,
       };
     };
     queue.push(
-      mkQueue({ visit: V.v14, patient: P.bethlehem, minutesAgoN: 38, status: 'waiting', service: V.v14.service }),
-      mkQueue({ visit: V.v5, patient: P.girma, minutesAgoN: 25, status: 'in_consultation', service: V.v5.service }),
-      mkQueue({ visit: V.v9, patient: P.berhanu, minutesAgoN: 95, status: 'completed', service: V.v9.service }),
+      mkQueue({ visit: V.v14, patient: P.bethlehem, minutesAgoN: 38, status: 'waiting', service: V.v14.service, priority: 'URGENT' }),
+      mkQueue({ visit: V.v5, patient: P.girma, minutesAgoN: 25, status: 'in_consultation', service: V.v5.service, priority: 'NORMAL' }),
+      mkQueue({ visit: V.v9, patient: P.berhanu, minutesAgoN: 95, status: 'completed', service: V.v9.service, priority: 'NORMAL' }),
     );
   }
+
+  const invoices = [];
+  const invoiceItems = [];
+  const payments = [];
+  const paymentVerifications = [];
+
+  // Generate seed invoices for visits
+  visits.forEach((v, idx) => {
+    const invNum = `INV-${String(idx + 1).padStart(6, '0')}`;
+    const patient = patients.find((p) => p.id === v.patientId);
+    const visitLabs = labRequests.filter((l) => l.visitId === v.id);
+    const visitProcs = procedures.filter((p) => p.visitId === v.id);
+    const visitRxs = prescriptions.filter((p) => p.visitId === v.id);
+
+    const items = [
+      {
+        id: `ITM-${invNum}-01`,
+        invoiceId: `I-${invNum.slice(4)}`,
+        serviceType: 'CONSULTATION',
+        serviceReferenceId: v.id,
+        description: `General OPD Consultation (${v.service || 'General'})`,
+        quantity: 1,
+        unitPrice: 200,
+        totalPrice: 200,
+        status: 'VERIFIED',
+        createdAt: v.date || v.createdAt,
+      },
+    ];
+
+    visitLabs.forEach((l, lIdx) => {
+      (l.tests || []).forEach((t, tIdx) => {
+        const testCatalog = labTests.find((c) => c.id === t.id);
+        const price = testCatalog?.price || 150;
+        items.push({
+          id: `ITM-${invNum}-L${lIdx}-${tIdx}`,
+          invoiceId: `I-${invNum.slice(4)}`,
+          serviceType: 'LABORATORY',
+          serviceReferenceId: l.id,
+          description: `Laboratory Test: ${t.name}`,
+          quantity: 1,
+          unitPrice: price,
+          totalPrice: price,
+          status: 'VERIFIED',
+          createdAt: l.date || l.createdAt,
+        });
+      });
+      l.paymentStatus = 'VERIFIED';
+    });
+
+    visitProcs.forEach((p, pIdx) => {
+      const procCatalog = procedureTypes.find((c) => c.name === p.procedureType);
+      const price = procCatalog?.price || 120;
+      items.push({
+        id: `ITM-${invNum}-P${pIdx}`,
+        invoiceId: `I-${invNum.slice(4)}`,
+        serviceType: 'PROCEDURE',
+        serviceReferenceId: p.id,
+        description: `Procedure: ${p.procedureType}`,
+        quantity: 1,
+        unitPrice: price,
+        totalPrice: price,
+        status: 'VERIFIED',
+        createdAt: p.date || p.createdAt,
+      });
+      p.paymentStatus = 'VERIFIED';
+    });
+
+    visitRxs.forEach((rx, rIdx) => {
+      (rx.medicines || []).forEach((m, mIdx) => {
+        const medCatalog = medicines.find((c) => c.name.toLowerCase().includes(m.medicine.toLowerCase()));
+        const price = medCatalog?.price || 80;
+        items.push({
+          id: `ITM-${invNum}-R${rIdx}-${mIdx}`,
+          invoiceId: `I-${invNum.slice(4)}`,
+          serviceType: 'PHARMACY',
+          serviceReferenceId: rx.id,
+          description: `Medication: ${m.medicine} (${m.dosage})`,
+          quantity: 1,
+          unitPrice: price,
+          totalPrice: price,
+          status: 'VERIFIED',
+          createdAt: rx.date || rx.createdAt,
+        });
+      });
+      rx.paymentStatus = 'VERIFIED';
+    });
+
+    const total = items.reduce((acc, it) => acc + it.totalPrice, 0);
+    const invoice = {
+      id: `I-${invNum.slice(4)}`,
+      invoiceNumber: invNum,
+      patientId: v.patientId,
+      patientName: patient?.fullName || v.patientName,
+      visitId: v.id,
+      visitNumber: v.visitNumber,
+      totalAmount: total,
+      paidAmount: total,
+      balance: 0,
+      status: 'VERIFIED',
+      createdAt: v.date || v.createdAt,
+      updatedAt: v.date || v.createdAt,
+    };
+
+    const payNum = `PAY-${String(idx + 1).padStart(6, '0')}`;
+    const rcpNum = `RCP-${String(idx + 1).padStart(6, '0')}`;
+    const payment = {
+      id: `P-${payNum.slice(4)}`,
+      paymentNumber: payNum,
+      invoiceId: invoice.id,
+      amount: total,
+      paymentMethod: 'CASH',
+      receiptNumber: rcpNum,
+      receivedBy: 'Hanna Tesfaye',
+      receivedById: 'U-RECEPTION',
+      receivedAt: v.date || v.createdAt,
+      status: 'COMPLETED',
+      notes: 'Initial encounter fee & service orders paid in full',
+    };
+
+    const verification = {
+      id: `PV-${String(idx + 1).padStart(6, '0')}`,
+      invoiceId: invoice.id,
+      paymentId: payment.id,
+      verifiedBy: 'Hanna Tesfaye',
+      verifiedById: 'U-RECEPTION',
+      verifiedAt: v.date || v.createdAt,
+      notes: 'Payment verified at reception cashier desk',
+    };
+
+    invoices.push(invoice);
+    items.forEach((it) => invoiceItems.push(it));
+    payments.push(payment);
+    paymentVerifications.push(verification);
+  });
+
+  const labSamples = [];
+  labRequests.forEach((req) => {
+    const sNum = nextSampleNumber();
+    const sample = {
+      id: `SMP-${sNum.slice(2)}`,
+      sampleNumber: sNum,
+      requestId: req.id,
+      patientId: req.patientId,
+      visitId: req.visitId,
+      specimenType: req.tests[0]?.specimenType || 'Whole Blood (EDTA)',
+      barcode: sNum.replace('-', ''),
+      status: req.status === 'completed' || req.status === 'verified' ? 'PROCESSED' : 'COLLECTED',
+      collectedAt: req.date || daysAgo(1, 10, 0),
+      collectedBy: 'Meron Girma',
+      notes: 'Vacutainer tube labeled & specimen integrity verified.',
+    };
+    req.sampleId = sample.id;
+    labSamples.push(sample);
+  });
 
   return {
     users: users.map(({ password, ...u }) => ({ ...u, password })),
@@ -556,9 +794,18 @@ export function buildSeed() {
     consultations,
     labRequests,
     labResults,
+    labSamples,
+    labDevices: [...defaultLabDevices],
     procedures,
     prescriptions,
+    injectionOrders,
+    injectionAdministrations,
+    invoices,
+    invoiceItems,
+    payments,
+    paymentVerifications,
     queue,
+    recycleBin: [],
     labTests,
     medicines,
     procedureTypes,

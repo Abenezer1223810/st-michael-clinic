@@ -5,10 +5,7 @@ import {
   HeartPulse,
   LogIn,
   ShieldCheck,
-  Users,
   Stethoscope,
-  FlaskConical,
-  Scissors,
   User,
   Lock,
   Eye,
@@ -17,21 +14,11 @@ import {
   Activity,
   DatabaseBackup,
   AlertCircle,
-  PlayCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { useDemo } from '../context/DemoContext';
 import { Spinner } from '../components/ui/States';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
-
-const DEMO_ACCOUNTS = [
-  { username: 'admin', password: 'admin123', label: 'Administrator', short: 'Admin', icon: ShieldCheck },
-  { username: 'reception', password: 'reception123', label: 'Receptionist', short: 'Receptionist', icon: Users },
-  { username: 'doctor', password: 'doctor123', label: 'Doctor', short: 'Doctor', icon: Stethoscope },
-  { username: 'lab', password: 'lab123', label: 'Laboratory Staff', short: 'Lab', icon: FlaskConical },
-  { username: 'procedure', password: 'procedure123', label: 'Procedure Staff', short: 'Procedure', icon: Scissors },
-];
 
 const FEATURES = [
   { label: 'Secure & Reliable', icon: ShieldCheck },
@@ -48,7 +35,6 @@ export default function Login() {
   const { t } = useTranslation();
   const { login } = useAuth();
   const toast = useToast();
-  const demo = useDemo();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -74,6 +60,10 @@ export default function Login() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!username.trim() || !password) {
+      setError(t('Please enter your username and password.'));
+      return;
+    }
     doLogin(username.trim(), password);
   };
 
@@ -192,6 +182,7 @@ export default function Login() {
                   placeholder={t('Enter your username or email')}
                   autoComplete="username"
                   className={inputCls}
+                  required
                 />
               </div>
 
@@ -205,6 +196,7 @@ export default function Login() {
                   placeholder={t('Enter your password')}
                   autoComplete="current-password"
                   className={`${inputCls} pr-11`}
+                  required
                 />
                 <button
                   type="button"
@@ -253,52 +245,7 @@ export default function Login() {
               </button>
             </form>
 
-            {/* Quick access */}
-            <div className="my-8 flex items-center gap-3">
-              <span className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('Quick Access')}</span>
-              <span className="h-px flex-1 bg-slate-200" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-              {DEMO_ACCOUNTS.map((acct) => (
-                <button
-                  key={acct.username}
-                  type="button"
-                  onClick={() => doLogin(acct.username, acct.password)}
-                  disabled={loading}
-                  className="group flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-brand-500 hover:shadow-md hover:shadow-brand-500/10 disabled:opacity-50"
-                >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700 transition group-hover:bg-gradient-to-br group-hover:from-brand-700 group-hover:to-brand-500 group-hover:text-white">
-                    <acct.icon className="h-4 w-4" />
-                  </span>
-                  <span className="text-[11px] font-medium leading-tight text-slate-600 group-hover:text-slate-900">
-                    {t(acct.short)}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            <div className="my-8 flex items-center gap-3">
-              <span className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('Guided Demo')}</span>
-              <span className="h-px flex-1 bg-slate-200" />
-            </div>
-
-            <button
-              type="button"
-              onClick={demo.start}
-              disabled={demo.busy || loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand-300 bg-brand-50/60 px-4 py-3 text-sm font-semibold text-brand-700 transition hover:border-brand-500 hover:bg-brand-50 disabled:opacity-60"
-            >
-              {demo.busy ? <Spinner /> : <PlayCircle className="h-5 w-5" />}
-              {t('Start Guided Demo')}
-            </button>
-            <p className="mt-2 text-center text-[11px] text-slate-400">
-              {t('Guided end-to-end journey of one patient through the clinic')}
-            </p>
-
-            <p className="mt-8 text-center text-xs text-slate-400">
+            <p className="mt-12 text-center text-xs text-slate-400">
               {t('Need help? Contact your system administrator.')}
             </p>
           </div>

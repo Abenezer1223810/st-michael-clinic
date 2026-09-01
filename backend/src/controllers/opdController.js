@@ -26,13 +26,19 @@ export const createConsultation = async (req, res) => {
 };
 
 export const updateConsultation = async (req, res) => {
-  const consultation = await db.updateConsultation(req.params.id, req.body);
+  const consultation = await db.updateConsultation(req.params.id, req.body, req.user);
   if (!consultation) return res.status(404).json({ message: 'Consultation not found.' });
   res.json({ consultation, message: 'Consultation saved.' });
 };
 
+export const holdConsultationForLab = async (req, res) => {
+  const consultation = await db.holdConsultationForLab(req.params.id, req.user);
+  if (!consultation) return res.status(404).json({ message: 'Consultation not found.' });
+  res.json({ consultation, message: 'Consultation paused awaiting laboratory results.' });
+};
+
 export const completeConsultation = async (req, res) => {
-  const consultation = await db.completeConsultation(req.params.id);
+  const consultation = await db.completeConsultation(req.params.id, req.user);
   if (!consultation) return res.status(404).json({ message: 'Consultation not found.' });
   res.json({ consultation, message: 'Consultation completed.' });
 };

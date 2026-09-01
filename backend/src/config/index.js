@@ -5,7 +5,7 @@ export const config = {
   clientOrigin: (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
     .split(',')
     .map((s) => s.trim()),
-  tokenSecret: process.env.DEMO_TOKEN_SECRET || 'st-michael-demo-secret',
+  tokenSecret: process.env.JWT_SECRET || process.env.TOKEN_SECRET || process.env.DEMO_TOKEN_SECRET || 'st-michael-hms-secret-key-2026',
   clinic: {
     name: 'St. Michael Medium Clinic',
     phone: '+251 11 111 1111',

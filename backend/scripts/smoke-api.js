@@ -107,7 +107,7 @@ async function main() {
     token: doc.token,
     body: { visitId: vid, testIds: ['LT-09', 'LT-10', 'LT-01'] },
   });
-  log(labReq.status === 201 && labReq.data.request.status === 'pending', 'create lab request', labReq.data.request?.requestNumber);
+  log(labReq.status === 201 && (labReq.data.request.status === 'pending' || labReq.data.request.status === 'REQUESTED'), 'create lab request', labReq.data.request?.requestNumber);
   const lrid = labReq.data.request.id;
 
   console.log('\n== 6. DOCTOR: PROCEDURE REQUEST ==');
@@ -131,12 +131,28 @@ async function main() {
   });
   log(rx.status === 201 && rx.data.prescription.medicines.length === 2, 'create prescription', rx.data.prescription?.prescriptionNumber);
 
+  console.log('\n== 7.5. RECEPTION: BILLING & PAYMENT VERIFICATION ==');
+  const inv = await call('GET', `/billing/visit/${vid}`, { token: reception.token });
+  log(inv.status === 200 && inv.data.invoice?.totalAmount > 0, 'visit invoice generated', inv.data.invoice?.invoiceNumber);
+
+  const pay = await call('POST', `/billing/invoices/${inv.data.invoice.id}/payments`, {
+    token: reception.token,
+    body: { amount: inv.data.invoice.totalAmount, paymentMethod: 'CASH' },
+  });
+  log(pay.status === 201 && pay.data.payment?.receiptNumber, 'receive payment', pay.data.payment?.receiptNumber);
+
+  const verify = await call('POST', `/billing/invoices/${inv.data.invoice.id}/verify`, {
+    token: reception.token,
+    body: { notes: 'Paid and verified at reception' },
+  });
+  log(verify.status === 200 && verify.data.invoice?.status === 'VERIFIED', 'verify payment & unlock departments');
+
   console.log('\n== 8. LABORATORY STAFF: RESULT ENTRY + VERIFY ==');
   const labList = await call('GET', '/laboratory/requests?status=pending', { token: lab.token });
   log(labList.status === 200 && labList.data.requests.some((r) => r.id === lrid), 'request appears in lab worklist');
 
   const resultDoc = await call('GET', `/laboratory/requests/${lrid}/result`, { token: lab.token });
-  log(resultDoc.status === 200 && resultDoc.data.result.status === 'pending', 'open result entry');
+  log(resultDoc.status === 200 && (resultDoc.data.result.status === 'pending' || resultDoc.data.result.status === 'DRAFT'), 'open result entry');
 
   const entered = await call('POST', `/laboratory/requests/${lrid}/results`, {
     token: lab.token,
@@ -148,10 +164,10 @@ async function main() {
       ],
     },
   });
-  log(entered.status === 200 && entered.data.result.status === 'entered', 'enter results');
+  log(entered.status === 200 && (entered.data.result.status === 'entered' || entered.data.result.status === 'RESULT_RECEIVED'), 'enter results');
 
   const verified = await call('POST', `/laboratory/requests/${lrid}/verify`, { token: lab.token });
-  log(verified.status === 200 && verified.data.result.status === 'verified', 'verify result');
+  log(verified.status === 200 && (verified.data.result.status === 'verified' || verified.data.result.status === 'TECHNICIAN_VERIFIED'), 'verify result');
 
   console.log('\n== 9. PROCEDURE STAFF: COMPLETE PROCEDURE ==');
   const procList = await call('GET', '/procedures', { token: proc.token });
@@ -180,7 +196,10 @@ async function main() {
   log(hist.status === 200, 'history endpoint');
   log(h.visits.length === 1, 'history has visit');
   log(h.consultations.length === 1 && h.consultations[0].diagnosis, 'history has consultation + diagnosis');
-  log(h.laboratory.length === 1 && h.laboratory[0].result?.status === 'verified', 'history has lab request + verified result');
+  log(
+    h.laboratory.length === 1 && (h.laboratory[0].result?.status === 'verified' || h.laboratory[0].result?.status === 'TECHNICIAN_VERIFIED'),
+    'history has lab request + verified result'
+  );
   log(h.procedures.length === 1 && h.procedures[0].status === 'completed', 'history has completed procedure');
   log(h.prescriptions.length === 1 && h.prescriptions[0].medicines.length === 2, 'history has prescription');
 

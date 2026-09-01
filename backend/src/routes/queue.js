@@ -11,6 +11,6 @@ const router = Router();
 router.use(requireAuth);
 router.get('/', listQueue);
 router.post('/', requireRole('receptionist', 'administrator'), addToQueue);
-router.patch('/:id/status', requireRole('receptionist', 'administrator'), updateQueueStatus);
+router.patch('/:id/status', requireRole('receptionist', 'doctor', 'administrator'), updateQueueStatus);
 
 export default router;

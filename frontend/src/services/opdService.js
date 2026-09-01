@@ -5,6 +5,7 @@ export const opdService = {
   getConsultation: (id) => api.get(`/consultations/${id}`),
   startConsultation: (visitId, vitals = {}) => api.post('/consultations', { visitId, vitals }),
   saveConsultation: (id, data) => api.patch(`/consultations/${id}`, data),
+  holdForLab: (id) => api.post(`/consultations/${id}/hold-for-lab`),
   completeConsultation: (id) => api.post(`/consultations/${id}/complete`),
   consultationsByPatient: (patientId) => api.get(`/consultations/patient/${patientId}`),
 };
