@@ -2816,26 +2816,6 @@ export const db = {
     });
   },
 
-  // Scoped listing: admins see all; regular users see only their own deleted items
-  async listRecycleBinForUser(requestingUser) {
-    const all = await this.listRecycleBin();
-    if (!requestingUser) return [];
-    const role = (requestingUser.role || '').toLowerCase();
-    if (role === 'administrator') return all;
-    // Match by deletedById (preferred) or by name/username fallback
-    // Also hide USER (staff) entity types from non-admins
-    return all.filter((item) => {
-      if ((item.entityType || '').toUpperCase() === 'USER') return false;
-      if (item.deletedById && requestingUser.id) {
-        return item.deletedById === requestingUser.id;
-      }
-      return (
-        item.deletedBy === requestingUser.name ||
-        item.deletedBy === requestingUser.username
-      );
-    });
-  },
-
   async restoreFromRecycleBin(id, user = null) {
     let item = null;
 
@@ -3979,5 +3959,6 @@ export function resetDb() {
   return db.resetDatabase();
 }
 
+export { prisma };
 export { isPostgresConnected, prisma };
 export default db;
