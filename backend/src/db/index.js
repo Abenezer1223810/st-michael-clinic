@@ -3960,5 +3960,6 @@ export function resetDb() {
 }
 
 export { prisma };
+
 export { isPostgresConnected, prisma };
 export default db;
