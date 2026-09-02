@@ -30,8 +30,8 @@ import {
 import { parseAnalyzerPayload, evaluateReferenceRange, DEFAULT_DEVICE_MAPPINGS } from '../services/analyzerParser.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 
-let prisma;
-let isPostgresConnected = false;
+export let prisma;
+export let isPostgresConnected = false;
 
 if (PrismaClient) {
   try {
@@ -365,9 +365,25 @@ export const db = {
   },
 
   async getPatient(id) {
-    const patient = inMemoryState.patients.find((p) => p.id === id || p.patientNumber === id);
-    if (!patient) return null;
-    return { ...patient, age: computeAge(patient.dateOfBirth) };
+    // Check in-memory first
+    let patient = inMemoryState.patients.find((p) => p.id === id || p.patientNumber === id);
+    if (patient) return { ...patient, age: computeAge(patient.dateOfBirth) };
+
+    // Fallback to PostgreSQL
+    if (isPostgresConnected && prisma) {
+      try {
+        const pg = await prisma.patient.findFirst({
+          where: { OR: [{ id }, { patientNumber: id }] },
+        });
+        if (pg) {
+          // Cache it in memory so subsequent lookups are fast
+          inMemoryState.patients.push(pg);
+          return { ...pg, age: computeAge(pg.dateOfBirth) };
+        }
+      } catch (_) {}
+    }
+
+    return null;
   },
 
   async createPatient(data, creator = null) {
@@ -3948,6 +3964,111 @@ export const db = {
     return inMemoryState.labDevices || [];
   },
 
+  // ─── Recycle Bin ────────────────────────────────────────────────────────────
+
+  async listRecycleBinForUser(user) {
+    const isAdmin = (user?.role || '').toLowerCase() === 'administrator';
+    if (!inMemoryState.recycleBin) inMemoryState.recycleBin = [];
+
+    // Try PostgreSQL first
+    if (isPostgresConnected && prisma) {
+      try {
+        const where = isAdmin ? {} : { deletedById: user.id };
+        const rows = await prisma.recycleBinItem.findMany({
+          where,
+          orderBy: { deletedAt: 'desc' },
+        });
+        return rows;
+      } catch (_) {
+        // fall through to in-memory
+      }
+    }
+
+    // In-memory fallback
+    const items = inMemoryState.recycleBin;
+    if (isAdmin) return [...items].sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt));
+    return items
+      .filter((i) => i.deletedById === user?.id)
+      .sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt));
+  },
+
+  async restoreFromRecycleBin(itemId, user) {
+    if (!inMemoryState.recycleBin) inMemoryState.recycleBin = [];
+
+    let item = null;
+
+    // Try PostgreSQL first
+    if (isPostgresConnected && prisma) {
+      try {
+        item = await prisma.recycleBinItem.findUnique({ where: { id: itemId } });
+        if (item) {
+          await prisma.recycleBinItem.delete({ where: { id: itemId } });
+        }
+      } catch (_) { item = null; }
+    }
+
+    // In-memory fallback / supplement
+    if (!item) {
+      const idx = inMemoryState.recycleBin.findIndex((i) => i.id === itemId);
+      if (idx === -1) return null;
+      item = inMemoryState.recycleBin[idx];
+      inMemoryState.recycleBin.splice(idx, 1);
+    } else {
+      // Also clean in-memory copy
+      inMemoryState.recycleBin = inMemoryState.recycleBin.filter((i) => i.id !== itemId);
+    }
+
+    // Restore data back to its original collection
+    if (item.data) {
+      const data = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+      const type = (item.entityType || '').toLowerCase();
+      if (type === 'patient') {
+        if (!inMemoryState.patients.find((p) => p.id === data.id)) {
+          inMemoryState.patients.push(data);
+        }
+        if (isPostgresConnected && prisma) {
+          try { await prisma.patient.create({ data }); } catch (_) {}
+        }
+      }
+      // Additional entity types (visit, prescription, etc.) can be added here
+    }
+
+    return item;
+  },
+
+  async permanentlyDeleteRecycleItem(itemId, user) {
+    if (!inMemoryState.recycleBin) inMemoryState.recycleBin = [];
+
+    // Remove from PostgreSQL
+    if (isPostgresConnected && prisma) {
+      try {
+        await prisma.recycleBinItem.delete({ where: { id: itemId } });
+      } catch (_) {}
+    }
+
+    // Remove from in-memory
+    inMemoryState.recycleBin = inMemoryState.recycleBin.filter((i) => i.id !== itemId);
+    return true;
+  },
+
+  async emptyRecycleBin(user) {
+    if (!inMemoryState.recycleBin) inMemoryState.recycleBin = [];
+
+    let count = inMemoryState.recycleBin.length;
+
+    // Delete all from PostgreSQL
+    if (isPostgresConnected && prisma) {
+      try {
+        const result = await prisma.recycleBinItem.deleteMany({});
+        count = result.count;
+      } catch (_) {}
+    }
+
+    // Clear in-memory
+    inMemoryState.recycleBin = [];
+    return { count };
+  },
+
   async resetDatabase() {
     inMemoryState = buildSeed();
     seedAllCounters();
@@ -3955,11 +4076,9 @@ export const db = {
   },
 };
 
+
 export function resetDb() {
   return db.resetDatabase();
 }
 
-export { prisma };
-
-export { isPostgresConnected, prisma };
 export default db;
