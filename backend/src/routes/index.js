@@ -15,12 +15,14 @@ import catalogRoutes from './catalog.js';
 import adminRoutes from './admin.js';
 import recycleBinRoutes from './recycleBin.js';
 import billingRoutes from './billing.js';
+import notificationRoutes from './notifications.js';
 import devRoutes from './dev.js';
 import demoRoutes from './demo.js';
 
 const router = Router();
 
 router.use('/auth', authRoutes);
+router.use('/notifications', notificationRoutes);
 router.use('/patients', patientRoutes);
 router.use('/visits', visitRoutes);
 router.use('/queue', queueRoutes);

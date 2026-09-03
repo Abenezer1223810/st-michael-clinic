@@ -101,4 +101,29 @@ export const completeRequest = async (req, res) => {
   res.json({ request, message: 'Laboratory request completed.' });
 };
 
+export const getLabRequestMessages = async (req, res) => {
+  try {
+    const messages = await db.getLabRequestMessages(req.params.id);
+    res.json({ messages });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const addLabRequestMessage = async (req, res) => {
+  const { message } = req.body || {};
+  if (!message || !message.trim()) {
+    return res.status(400).json({ message: 'Message content is required.' });
+  }
+
+  try {
+    const newMsg = await db.addLabRequestMessage(req.params.id, message.trim(), req.user);
+    if (!newMsg) return res.status(404).json({ message: 'Laboratory request not found.' });
+    res.status(201).json({ message: newMsg, success: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 export { formatDate };
+

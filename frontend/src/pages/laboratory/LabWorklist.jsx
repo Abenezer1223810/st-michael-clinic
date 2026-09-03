@@ -19,6 +19,7 @@ import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { LabReportPrint } from '../../components/print/LabReportPrint';
 import { SpecimenLabelPrint } from '../../components/print/SpecimenLabelPrint';
 import { LabResultConfirmModal } from '../../components/lab/LabResultConfirmModal';
+import { LabDoctorCommunication } from '../../components/lab/LabDoctorCommunication';
 import { formatDateTime } from '../../utils/format';
 import { LAB_TESTS, LAB_CATEGORIES } from '../../utils/labBilling';
 
@@ -549,6 +550,13 @@ export default function LabWorklist() {
           );
         })
       )}
+
+      {/* Doctor & Lab Clinical Communication Thread */}
+      <LabDoctorCommunication
+        requestId={id}
+        patientName={request.patientName}
+        doctorName={request.requestingDoctor}
+      />
 
       {/* Action footer */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">

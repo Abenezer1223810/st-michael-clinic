@@ -36,6 +36,7 @@ import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { StethoscopePattern } from '../ui/StethoscopePattern';
 import { LanguageSwitcher } from '../LanguageSwitcher';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 const NAV = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard, roles: ['administrator', 'receptionist', 'doctor', 'laboratory', 'procedure', 'pharmacy'] },
@@ -345,6 +346,7 @@ export function AppLayout() {
           </div>
           <div className="flex items-center gap-2">
             <LanguageSwitcher compact />
+            <NotificationBell />
             <button
               onClick={() => setShortcutsOpen(true)}
               aria-label={t('Keyboard shortcuts')}

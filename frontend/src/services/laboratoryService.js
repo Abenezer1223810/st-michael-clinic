@@ -22,4 +22,8 @@ export const laboratoryService = {
   deleteDevice: (id) => api.delete(`/laboratory/devices/${id}`),
   ingestAnalyzerResults: (rawPayload) => api.post('/laboratory/devices/ingest', rawPayload),
   runSimulator: (data) => api.post('/laboratory/simulator/run', data),
+
+  // Doctor & Lab Communication
+  getMessages: (id) => api.get(`/laboratory/requests/${id}/messages`),
+  sendMessage: (id, message) => api.post(`/laboratory/requests/${id}/messages`, { message }),
 };

@@ -1412,6 +1412,28 @@ export const db = {
       console.warn('Sync invoice after lab request fallback:', e.message);
     }
 
+    // Trigger instant notification to laboratory staff
+    try {
+      await this.createNotification({
+        recipientRole: 'laboratory',
+        title: `New Lab Order: ${visit.patientName}`,
+        message: `Dr. ${user.name || 'Doctor'} requested ${tests.length} diagnostic test(s) for ${visit.patientName} (MRN: ${visit.patientId}).`,
+        type: 'LAB_ORDER_CREATED',
+        link: `/laboratory/worklist/${request.id}`,
+        metadata: {
+          requestId: request.id,
+          requestNumber: request.requestNumber,
+          patientId: visit.patientId,
+          patientName: visit.patientName,
+          doctorName: user.name,
+          testCount: tests.length,
+          tests: tests.map((t) => t.name),
+        },
+      });
+    } catch (notifErr) {
+      console.warn('Failed to dispatch lab order notification:', notifErr.message);
+    }
+
     return request;
   },
 
@@ -1786,6 +1808,37 @@ export const db = {
       entityId: result.id,
       details: { requestId: request.id, releasedToDoctorAt: result.releasedToDoctorAt },
     });
+
+    // Trigger instant notification to ordering doctor / OPD team
+    try {
+      const abnormalCount = (result.results || []).filter(
+        (r) => r.flag === 'HIGH' || r.flag === 'LOW' || r.flag === 'CRITICAL' || r.flag === 'ABNORMAL'
+      ).length;
+
+      await this.createNotification({
+        recipientRole: 'doctor',
+        title: `Lab Results Released: ${request.patientName}`,
+        message: `Diagnostic report for ${request.patientName} (MRN: ${request.patientId}) has been finalized and released by ${user.name}. ${
+          abnormalCount > 0
+            ? `⚠ ${abnormalCount} abnormal parameter(s) detected.`
+            : '✓ All measured parameters are within normal reference range.'
+        }`,
+        type: 'LAB_RESULTS_RELEASED',
+        link: `/opd`,
+        metadata: {
+          requestId: request.id,
+          requestNumber: request.requestNumber,
+          visitId: request.visitId,
+          patientId: request.patientId,
+          patientName: request.patientName,
+          abnormalCount,
+          releasedBy: user.name,
+          releasedAt: result.releasedToDoctorAt,
+        },
+      });
+    } catch (notifErr) {
+      console.warn('Failed to dispatch lab release notification:', notifErr.message);
+    }
 
     return { result, request };
   },
@@ -4084,6 +4137,141 @@ export const db = {
     inMemoryState = buildSeed();
     seedAllCounters();
     return true;
+  },
+
+  // ---------------------------------------------------------------- NOTIFICATIONS ENGINE
+  async createNotification({ recipientRole = 'all', recipientUserId = null, title, message, type = 'INFO', link = '', metadata = {}, priority = 'NORMAL' }) {
+    inMemoryState.notifications = inMemoryState.notifications || [];
+    const id = `NOTIF-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const notification = {
+      id,
+      recipientRole: normalizeRole(recipientRole),
+      recipientUserId,
+      title,
+      message,
+      type,
+      link,
+      metadata,
+      priority, // 'NORMAL' | 'URGENT' | 'CRITICAL'
+      read: false,
+      readAt: null,
+      createdAt: now(),
+    };
+
+    inMemoryState.notifications.unshift(notification);
+    return notification;
+  },
+
+  async listNotifications(user, unreadOnly = false) {
+    inMemoryState.notifications = inMemoryState.notifications || [];
+    const userRole = normalizeRole(user?.role);
+    const userId = user?.id;
+
+    let list = inMemoryState.notifications.filter((n) => {
+      // Match recipient role or specific user or administrator
+      const matchesRole = n.recipientRole === 'all' || n.recipientRole === userRole || userRole === 'administrator';
+      const matchesUser = !n.recipientUserId || n.recipientUserId === userId;
+      return matchesRole && matchesUser;
+    });
+
+    if (unreadOnly) {
+      list = list.filter((n) => !n.read);
+    }
+
+    return list.slice(0, 50); // Most recent 50
+  },
+
+  async markNotificationAsRead(id, user) {
+    inMemoryState.notifications = inMemoryState.notifications || [];
+    const notif = inMemoryState.notifications.find((n) => n.id === id);
+    if (!notif) return null;
+    notif.read = true;
+    notif.readAt = now();
+    return notif;
+  },
+
+  async markAllNotificationsAsRead(user) {
+    inMemoryState.notifications = inMemoryState.notifications || [];
+    const userRole = normalizeRole(user?.role);
+    const userId = user?.id;
+    let count = 0;
+
+    for (const n of inMemoryState.notifications) {
+      const matchesRole = n.recipientRole === 'all' || n.recipientRole === userRole || userRole === 'administrator';
+      const matchesUser = !n.recipientUserId || n.recipientUserId === userId;
+      if (matchesRole && matchesUser && !n.read) {
+        n.read = true;
+        n.readAt = now();
+        count++;
+      }
+    }
+    return count;
+  },
+
+  async clearNotifications(user) {
+    inMemoryState.notifications = inMemoryState.notifications || [];
+    const userRole = normalizeRole(user?.role);
+    const userId = user?.id;
+
+    inMemoryState.notifications = inMemoryState.notifications.filter((n) => {
+      const matchesRole = n.recipientRole === 'all' || n.recipientRole === userRole || userRole === 'administrator';
+      const matchesUser = !n.recipientUserId || n.recipientUserId === userId;
+      return !(matchesRole && matchesUser);
+    });
+    return true;
+  },
+
+  // ---------------------------------------------------------------- LAB-DOCTOR COMMUNICATION NOTES
+  async getLabRequestMessages(requestId) {
+    inMemoryState.labMessages = inMemoryState.labMessages || [];
+    return inMemoryState.labMessages
+      .filter((m) => m.requestId === requestId)
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  },
+
+  async addLabRequestMessage(requestId, messageText, user) {
+    const request = inMemoryState.labRequests.find((r) => r.id === requestId);
+    if (!request) return null;
+
+    inMemoryState.labMessages = inMemoryState.labMessages || [];
+    const msgId = `MSG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const newMsg = {
+      id: msgId,
+      requestId: request.id,
+      patientId: request.patientId,
+      patientName: request.patientName,
+      senderId: user.id,
+      senderName: user.name,
+      senderRole: normalizeRole(user.role),
+      message: messageText,
+      timestamp: now(),
+    };
+
+    inMemoryState.labMessages.push(newMsg);
+
+    // Trigger instant notification to the other party
+    try {
+      const isSenderDoctor = user.role === 'doctor';
+      const recipientRole = isSenderDoctor ? 'laboratory' : 'doctor';
+      await this.createNotification({
+        recipientRole,
+        title: `Clinical Note from ${user.name} (${isSenderDoctor ? 'Doctor' : 'Lab'})`,
+        message: `${user.name}: "${messageText.slice(0, 100)}${messageText.length > 100 ? '...' : ''}" (${request.patientName})`,
+        type: 'LAB_COMMUNICATION',
+        link: isSenderDoctor ? `/laboratory/worklist/${request.id}` : `/opd`,
+        metadata: {
+          requestId: request.id,
+          patientId: request.patientId,
+          patientName: request.patientName,
+          senderName: user.name,
+          senderRole: user.role,
+        },
+      });
+    } catch (notifErr) {
+      console.warn('Failed to dispatch communication notification:', notifErr.message);
+    }
+
+    return newMsg;
   },
 };
 

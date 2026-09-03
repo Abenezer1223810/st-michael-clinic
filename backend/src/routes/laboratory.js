@@ -12,6 +12,8 @@ import {
   verifyResult,
   releaseResultToDoctor,
   completeRequest,
+  getLabRequestMessages,
+  addLabRequestMessage,
 } from '../controllers/laboratoryController.js';
 import {
   listDevices,
@@ -54,6 +56,10 @@ router.post('/requests/:id/results', requireRole(...LAB_WRITE), enterResults);
 router.post('/requests/:id/verify', requireRole(...LAB_WRITE), verifyResult);
 router.post('/requests/:id/release', requireRole(...LAB_WRITE), releaseResultToDoctor);
 router.post('/requests/:id/complete', requireRole(...LAB_WRITE), completeRequest);
+
+// Doctor & Lab Communication Notes
+router.get('/requests/:id/messages', requireRole(...CLINICAL), getLabRequestMessages);
+router.post('/requests/:id/messages', requireRole(...CLINICAL), addLabRequestMessage);
 
 // Device configuration management
 router.get('/devices', requireRole(...CLINICAL), listDevices);

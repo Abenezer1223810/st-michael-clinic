@@ -38,6 +38,7 @@ import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { LabRequestModal } from '../../components/consultation/LabRequestModal';
 import { ProcedureRequestModal } from '../../components/consultation/ProcedureRequestModal';
 import { PrescriptionModal } from '../../components/consultation/PrescriptionModal';
+import { LabDoctorCommunication } from '../../components/lab/LabDoctorCommunication';
 import { formatDateTime, formatDate } from '../../utils/format';
 import { ConsultationPrint } from '../../components/print/ConsultationPrint';
 
@@ -703,6 +704,15 @@ export default function Consultation() {
                               <span>{t('Tests pending laboratory analysis.')} ({req.tests?.map((t) => t.name).join(', ')})</span>
                             </div>
                           )}
+
+                          {/* Clinical Lab Communication Component */}
+                          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                            <LabDoctorCommunication
+                              requestId={req.id}
+                              patientName={patient?.fullName}
+                              doctorName={user?.name}
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
