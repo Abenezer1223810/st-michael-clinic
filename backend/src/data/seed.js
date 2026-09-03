@@ -1,4 +1,4 @@
-import { users, labTests, defaultLabDevices, medicines, procedureTypes, departments } from './catalog.js';
+import { users, labTests, labCategories, labBundles, defaultLabDevices, medicines, procedureTypes, departments } from './catalog.js';
 import {
   nextPatientId,
   nextVisitNumber,
@@ -14,7 +14,10 @@ import {
 } from '../utils/idGenerator.js';
 import { daysAgo, minutesAgo, now } from '../utils/helpers.js';
 
-const testById = (id) => labTests.find((t) => t.id === id);
+const testById = (id) =>
+  labTests.find((t) => t.id === id || t.code === id) ||
+  labTests.find((t) => t.id === 'LT-HEM-01') ||
+  labTests[0];
 const medByName = (name) => medicines.find((m) => m.name === name);
 
 const mkPatient = ({ fullName, gender, dateOfBirth, phone, address, regAgo, emergencyContactName = '', emergencyContactPhone = '', relationshipToPatient = '', allergies = [] }) => {
@@ -379,43 +382,42 @@ export function buildSeed() {
   labRequests.push(
     mkLabRequest({
       visit: V.v9, patient: P.berhanu, ago: 0, status: 'completed',
-      testIds: ['LT-01', 'LT-02', 'LT-03', 'LT-05'],
+      testIds: ['LT-HEM-01', 'LT-HEM-03', 'LT-CHM-01'],
     }),
     mkLabRequest({
       visit: V.v7, patient: P.tigist, ago: 3, status: 'in_progress',
-      testIds: ['LT-09', 'LT-10'],
+      testIds: ['LT-SER-02', 'LT-SER-03'],
     }),
     mkLabRequest({
       visit: V.v1, patient: P.abebe, ago: 12, status: 'completed',
-      testIds: ['LT-06', 'LT-07'],
+      testIds: ['LT-CHM-12', 'LT-CHM-08'],
     }),
     mkLabRequest({
       visit: V.v5, patient: P.girma, ago: 0, status: 'pending',
-      testIds: ['LT-09', 'LT-10'],
+      testIds: ['LT-SER-02', 'LT-SER-03'],
     }),
   );
   const labResults = [
     mkLabResult({
       request: labRequests[0], ago: 0, status: 'completed',
       values: {
-        'LT-01': { result: '13.2', remarks: 'Within normal limits' },
-        'LT-02': { result: '7.4', remarks: 'Within normal limits' },
-        'LT-03': { result: '268', remarks: 'Within normal limits' },
-        'LT-05': { result: '142', remarks: 'Mildly elevated' },
+        'LT-HEM-01': { result: '7.4', remarks: 'Normal CBC profile' },
+        'LT-HEM-03': { result: '13.2', remarks: 'Within normal limits' },
+        'LT-CHM-01': { result: '142', remarks: 'Mildly elevated' },
       },
     }),
     mkLabResult({
       request: labRequests[1], ago: 3, status: 'entered',
       values: {
-        'LT-09': { result: 'Negative', remarks: '' },
-        'LT-10': { result: '1:80', remarks: 'Borderline' },
+        'LT-SER-02': { result: '1:80', remarks: 'Borderline' },
+        'LT-SER-03': { result: '1:40', remarks: 'Within normal limits' },
       },
     }),
     mkLabResult({
       request: labRequests[2], ago: 12, status: 'completed',
       values: {
-        'LT-06': { result: '228', remarks: 'Elevated' },
-        'LT-07': { result: '1.0', remarks: 'Within normal limits' },
+        'LT-CHM-12': { result: '228', remarks: 'Elevated' },
+        'LT-CHM-08': { result: '1.0', remarks: 'Within normal limits' },
       },
     }),
   ];
@@ -807,6 +809,8 @@ export function buildSeed() {
     queue,
     recycleBin: [],
     labTests,
+    labCategories,
+    labBundles,
     medicines,
     procedureTypes,
     departments,

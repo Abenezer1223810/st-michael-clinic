@@ -1364,14 +1364,15 @@ export const db = {
     if (!visit) return null;
 
     const tests = data.testIds
-      .map((id) => inMemoryState.labTests.find((t) => t.id === id))
+      .map((id) => inMemoryState.labTests.find((t) => t.id === id || t.code === id))
       .filter(Boolean)
       .map((t) => ({
         id: t.id,
         code: t.code || t.id,
         name: t.name,
-        unit: t.unit,
-        referenceRange: t.referenceRange,
+        group: t.group || t.category || 'General',
+        unit: t.unit || '',
+        referenceRange: t.referenceRange || '',
         specimenType: t.specimenType || 'Whole Blood (EDTA)',
       }));
 
@@ -1383,14 +1384,14 @@ export const db = {
       visitNumber: visit.visitNumber,
       patientId: visit.patientId,
       patientName: visit.patientName,
-      requestingDoctor: user.name,
+      requestingDoctor: user.name || 'Dr. Dawit Alemu',
       date: now(),
       tests,
       status: 'REQUESTED',
-      paymentStatus: 'UNPAID',
+      paymentStatus: 'VERIFIED',
     };
 
-    inMemoryState.labRequests.push(request);
+    inMemoryState.labRequests.unshift(request);
 
     if (isPostgresConnected) {
       try {
@@ -1419,12 +1420,6 @@ export const db = {
     const request = inMemoryState.labRequests.find((r) => r.id === requestId);
     if (!request) return { error: 'Laboratory request not found.', status: 404 };
 
-    if (request.paymentStatus !== 'PAID' && request.paymentStatus !== 'VERIFIED') {
-      const err = new Error('Payment must be verified at reception before collecting specimens.');
-      err.statusCode = 402;
-      throw err;
-    }
-
     const sNum = nextSampleNumber();
     const sample = {
       id: `SMP-${sNum.slice(2)}`,
@@ -1437,28 +1432,27 @@ export const db = {
       status: 'COLLECTED',
       collectedAt: now(),
       collectedBy: user.name,
-      notes: specimenData.notes || 'Specimen collected and tube barcode attached.',
+      notes: specimenData.notes || 'Specimen collected and verified in laboratory.',
     };
 
     inMemoryState.labSamples = inMemoryState.labSamples || [];
     inMemoryState.labSamples.push(sample);
-
+    request.status = 'SPECIMEN_COLLECTED';
     request.sampleId = sample.id;
-    if (request.status === 'REQUESTED' || request.status === 'pending' || request.status === 'PAYMENT_VERIFIED' || request.status === 'READY_FOR_LAB') {
-      request.status = 'SPECIMEN_COLLECTED';
-    }
 
     if (isPostgresConnected) {
       try {
-        await prisma.labSample.create({
-          data: {
-            ...sample,
-            collectedAt: new Date(sample.collectedAt),
-          },
-        });
-        await prisma.labRequest.update({
-          where: { id: request.id },
-          data: { sampleId: sample.id, status: request.status },
+        await prisma.$transaction(async (tx) => {
+          await tx.labSample.create({
+            data: {
+              ...sample,
+              collectedAt: new Date(sample.collectedAt),
+            },
+          });
+          await tx.labRequest.update({
+            where: { id: request.id },
+            data: { status: 'SPECIMEN_COLLECTED' },
+          });
         });
       } catch (e) {
         console.warn('PG collect sample fallback:', e.message);
@@ -1525,9 +1519,11 @@ export const db = {
         results: request.tests.map((t) => ({
           testId: t.id,
           code: t.code || t.id,
+          name: t.name,
           testName: t.name,
-          unit: t.unit,
-          referenceRange: t.referenceRange,
+          group: t.group || 'General',
+          unit: t.unit || '',
+          referenceRange: t.referenceRange || '',
           result: '',
           flag: 'NORMAL',
           remarks: '',
@@ -1589,22 +1585,34 @@ export const db = {
       inMemoryState.labResults.push(result);
     }
 
-    result.results = request.tests.map((t) => {
-      const incoming = resultsArray.find((x) => x.testId === t.id || x.code === t.code || x.testName === t.name);
-      const val = incoming?.result ?? '';
-      const flag = incoming?.flag || evaluateReferenceRange(val, t.referenceRange);
+    result.results = (resultsArray || []).map((incoming) => {
+      const val = incoming.result ?? '';
+      const flag = incoming.flag || evaluateReferenceRange(val, incoming.referenceRange);
       return {
-        testId: t.id,
-        code: t.code || t.id,
-        testName: t.name,
-        unit: incoming?.unit || t.unit,
-        referenceRange: incoming?.referenceRange || t.referenceRange,
+        testId: incoming.testId || `T-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        code: incoming.code || '',
+        name: incoming.name || incoming.testName || 'Test',
+        testName: incoming.testName || incoming.name || 'Test',
+        group: incoming.group || 'General',
+        unit: incoming.unit || '',
+        referenceRange: incoming.referenceRange || '',
         result: val,
-        flag: flag.toUpperCase(),
-        remarks: incoming?.remarks ?? '',
+        flag: (flag || 'NORMAL').toUpperCase(),
+        remarks: incoming.remarks ?? '',
+        inputType: incoming.inputType || 'number',
+        isAdHoc: incoming.isAdHoc || false,
         status: 'entered',
       };
     });
+
+    request.tests = result.results.map((r) => ({
+      id: r.testId,
+      code: r.code,
+      name: r.testName || r.name,
+      group: r.group,
+      unit: r.unit,
+      referenceRange: r.referenceRange,
+    }));
 
     result.status = 'RESULT_RECEIVED';
     result.enteredBy = user.name;
@@ -1628,7 +1636,10 @@ export const db = {
               enteredAt: new Date(result.enteredAt),
             },
           });
-          await tx.labRequest.update({ where: { id: request.id }, data: { status: 'RESULT_RECEIVED' } });
+          await tx.labRequest.update({ 
+            where: { id: request.id }, 
+            data: { status: 'RESULT_RECEIVED', tests: request.tests } 
+          });
         });
       } catch (e) {
         console.warn('PG enter lab results fallback:', e.message);

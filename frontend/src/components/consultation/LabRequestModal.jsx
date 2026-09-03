@@ -4,14 +4,12 @@ import { FlaskConical } from 'lucide-react';
 import { laboratoryService } from '../../services/laboratoryService';
 import { useToast } from '../../context/ToastContext';
 import { Modal } from '../ui/Modal';
-import { Spinner } from '../ui/States';
+import { LaboratoryOrderForm } from '../lab/LaboratoryOrderForm';
 
-export function LabRequestModal({ open, onClose, visitId, onRequested }) {
+export function LabRequestModal({ open, onClose, visitId, patient, onRequested }) {
   const { t } = useTranslation();
   const toast = useToast();
-  const [tests, setTests] = useState([]);
   const [selected, setSelected] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -19,32 +17,30 @@ export function LabRequestModal({ open, onClose, visitId, onRequested }) {
     if (!open) return;
     setSelected([]);
     setError(null);
-    setLoading(true);
-    laboratoryService
-      .getTests()
-      .then((d) => setTests(d.tests))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
   }, [open]);
 
-  const toggle = (id) => {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  };
-
-  const handleSubmit = async () => {
-    if (selected.length === 0) {
+  const handleSubmit = async (orderPayload) => {
+    const testIds = orderPayload?.selectedTests || selected;
+    if (!testIds || testIds.length === 0) {
       setError(t('Select at least one test.'));
       return;
     }
     setSaving(true);
     try {
-      const { message } = await laboratoryService.createRequest(visitId, selected);
-      toast.success(message || t('Laboratory request created.'));
+      const { message } = await laboratoryService.createRequest(visitId, testIds);
+      const totalAmount = orderPayload?.billing?.totalETB;
+      toast.success(
+        message ||
+          t('Laboratory request created for {{count}} test(s) ({{total}} ETB).', {
+            count: testIds.length,
+            total: totalAmount || '',
+          })
+      );
       onRequested?.();
       onClose();
     } catch (e) {
-      toast.error(e.message);
-      setError(e.message);
+      toast.error(e.response?.data?.message || e.message);
+      setError(e.response?.data?.message || e.message);
     } finally {
       setSaving(false);
     }
@@ -54,47 +50,29 @@ export function LabRequestModal({ open, onClose, visitId, onRequested }) {
     <Modal
       open={open}
       onClose={onClose}
-      title={t('Request Laboratory Test')}
-      subtitle={t('Select the tests to request for this patient')}
+      title={t('Clinical Laboratory Order Station')}
+      subtitle={t('Michael Medium Clinic diagnostic catalog with bundled pricing (ETB)')}
       icon={FlaskConical}
-      footer={
-        <>
-          <button className="btn-secondary" onClick={onClose}>
-            {t('Cancel')}
-          </button>
-          <button className="btn-primary" onClick={handleSubmit} disabled={saving}>
-            {saving ? <Spinner /> : t('Request Tests')}
-          </button>
-        </>
-      }
+      size="xl"
     >
-      {loading ? (
-        <Spinner className="mx-auto my-10 h-6 w-6 text-brand-500" />
-      ) : (
-        <div>
-          <div className="mb-3 flex flex-wrap gap-2">
-            {tests.map((test) => (
-              <button
-                key={test.id}
-                onClick={() => toggle(test.id)}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                  selected.includes(test.id)
-                    ? 'border-brand-600 bg-brand-600 text-white'
-                    : 'border-slate-200 bg-white text-slate-700 hover:border-brand-400'
-                }`}
-              >
-                {t(test.name)}
-              </button>
-            ))}
+      <div className="space-y-4">
+        {error && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300">
+            {error}
           </div>
-          {selected.length > 0 && (
-            <p className="mb-3 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
-              {t('{{count}} test(s) selected', { count: selected.length })}
-            </p>
-          )}
-          {error && <p className="mb-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
-        </div>
-      )}
+        )}
+
+        <LaboratoryOrderForm
+          selectedTests={selected}
+          onSelectionChange={setSelected}
+          onSubmit={handleSubmit}
+          isSubmitting={saving}
+          patient={patient}
+          mode="order"
+          showBilling={true}
+        />
+      </div>
     </Modal>
   );
 }
+

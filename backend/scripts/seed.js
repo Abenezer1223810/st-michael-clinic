@@ -38,6 +38,7 @@ export async function seedDatabase(customPrisma) {
       "patients",
       "users",
       "lab_tests",
+      "lab_categories",
       "medicines",
       "procedure_types",
       "departments",
@@ -50,15 +51,60 @@ export async function seedDatabase(customPrisma) {
     data: seed.departments.map((name, idx) => ({ id: `DP-${String(idx + 1).padStart(2, '0')}`, name })),
   });
 
+  if (seed.labCategories && db.labCategory) {
+    await db.labCategory.createMany({
+      data: seed.labCategories.map((c) => ({
+        id: c.id,
+        slug: c.slug,
+        name: c.name,
+        code: c.code,
+        description: c.description || '',
+        displayOrder: c.displayOrder || 0,
+      })),
+    });
+  }
+
   await db.labTest.createMany({
     data: seed.labTests.map((t) => ({
       id: t.id,
       name: t.name,
       group: t.group,
-      unit: t.unit,
-      referenceRange: t.referenceRange,
+      unit: t.unit || '',
+      referenceRange: t.referenceRange || '',
     })),
   });
+
+  // Enrich lab_tests table with full price, code, and bundle fields
+  try {
+    for (const t of seed.labTests) {
+      await db.$executeRawUnsafe(
+        `UPDATE "lab_tests" SET 
+          "code" = $1, "full_name" = $2, "category_id" = $3, 
+          "price" = $4, "currency" = $5, "specimen_type" = $6, 
+          "input_type" = $7, "is_quantitative" = $8, "is_panel" = $9, 
+          "bundle_key" = $10, "bundle_note" = $11, 
+          "options" = $12::jsonb, "sub_parameters" = $13::jsonb, "description" = $14 
+        WHERE "id" = $15`,
+        t.code || '',
+        t.fullName || t.name,
+        t.categoryId || null,
+        t.price || 0,
+        t.currency || 'ETB',
+        t.specimenType || '',
+        t.inputType || 'number',
+        t.isQuantitative ?? true,
+        t.isPanel ?? false,
+        t.bundleKey || null,
+        t.bundleNote || null,
+        JSON.stringify(t.options || []),
+        JSON.stringify(t.subParameters || []),
+        t.description || '',
+        t.id
+      );
+    }
+  } catch (enrichErr) {
+    console.warn('Lab test metadata enrichment warning:', enrichErr.message);
+  }
 
   await db.medicine.createMany({
     data: seed.medicines.map((m) => ({
@@ -82,12 +128,12 @@ export async function seedDatabase(customPrisma) {
     data: [
       {
         id: 'DEV-CBC-01',
+        deviceCode: 'DEV-CBC-01',
         name: 'Mindray BC-5000 / Sysmex XN-550 (Hematology / CBC Analyzer)',
-        type: 'hematology_cbc',
-        protocol: 'HL7_V2',
+        analyzerType: 'CBC',
+        protocol: 'HL7',
         ipAddress: '192.168.1.120',
         port: 5100,
-        status: 'online',
         mappings: {
           HGB: 'LT-01',
           HB: 'LT-01',
@@ -97,12 +143,12 @@ export async function seedDatabase(customPrisma) {
       },
       {
         id: 'DEV-CHEM-01',
+        deviceCode: 'DEV-CHEM-01',
         name: 'Roche Cobas c311 / Mindray BS-240 (Clinical Chemistry Analyzer)',
-        type: 'clinical_chemistry',
-        protocol: 'ASTM_1394',
+        analyzerType: 'CHEMISTRY',
+        protocol: 'ASTM',
         ipAddress: '192.168.1.125',
         port: 5200,
-        status: 'online',
         mappings: {
           GLU: 'LT-04',
           FBS: 'LT-04',

@@ -1,3 +1,5 @@
+import michaelLabCatalog from './michaelClinicLabCatalog.json' with { type: 'json' };
+
 export const departments = [
   'OPD',
   'Internal Medicine',
@@ -8,22 +10,31 @@ export const departments = [
   'Procedure Room',
 ];
 
-export const labTests = [
-  { id: 'LT-01', code: 'HGB', name: 'Hemoglobin (Hb)', group: 'Complete Blood Count', unit: 'g/dL', referenceRange: '12.0 – 16.0', specimenType: 'Whole Blood (EDTA)', price: 150 },
-  { id: 'LT-02', code: 'WBC', name: 'White Blood Cell (WBC)', group: 'Complete Blood Count', unit: 'x10^9/L', referenceRange: '4.0 – 11.0', specimenType: 'Whole Blood (EDTA)', price: 150 },
-  { id: 'LT-03', code: 'PLT', name: 'Platelet Count', group: 'Complete Blood Count', unit: 'x10^9/L', referenceRange: '150 – 450', specimenType: 'Whole Blood (EDTA)', price: 150 },
-  { id: 'LT-04', code: 'GLU_FASTING', name: 'Blood Glucose (Fasting)', group: 'Biochemistry', unit: 'mg/dL', referenceRange: '70 – 110', specimenType: 'Fluoride Plasma / Serum', price: 80 },
-  { id: 'LT-05', code: 'GLU_RANDOM', name: 'Blood Glucose (Random)', group: 'Biochemistry', unit: 'mg/dL', referenceRange: '80 – 140', specimenType: 'Serum / Plasma', price: 80 },
-  { id: 'LT-06', code: 'CHOL', name: 'Total Cholesterol', group: 'Lipid Profile', unit: 'mg/dL', referenceRange: '< 200', specimenType: 'Serum', price: 200 },
-  { id: 'LT-07', code: 'CREA', name: 'Creatinine', group: 'Kidney Function', unit: 'mg/dL', referenceRange: '0.6 – 1.2', specimenType: 'Serum', price: 160 },
-  { id: 'LT-08', code: 'ALT', name: 'ALT (SGPT)', group: 'Liver Function', unit: 'U/L', referenceRange: '7 – 56', specimenType: 'Serum', price: 180 },
-  { id: 'LT-09', code: 'MALARIA', name: 'Malaria Rapid Test (RDT)', group: 'Parasitology', unit: 'Positive / Negative', referenceRange: 'Negative', specimenType: 'Whole Blood', price: 100 },
-  { id: 'LT-10', code: 'WIDAL', name: 'Typhoid (Widal Test)', group: 'Serology', unit: 'Titer', referenceRange: '< 1:80', specimenType: 'Serum', price: 140 },
-  { id: 'LT-11', code: 'URINE_PROT', name: 'Urinalysis - Protein', group: 'Urinalysis', unit: 'Positive / Negative', referenceRange: 'Negative', specimenType: 'Urine', price: 90 },
-  { id: 'LT-12', code: 'HIV', name: 'HIV Rapid Test', group: 'Serology', unit: 'Positive / Negative', referenceRange: 'Negative', specimenType: 'Serum / Whole Blood', price: 100 },
-  { id: 'LT-13', code: 'HBSAG', name: 'HBsAg (Hepatitis B)', group: 'Serology', unit: 'Positive / Negative', referenceRange: 'Negative', specimenType: 'Serum', price: 150 },
-  { id: 'LT-14', code: 'PREG_TEST', name: 'Urine Pregnancy Test', group: 'Urinalysis', unit: 'Positive / Negative', referenceRange: 'Negative', specimenType: 'Urine', price: 80 },
-];
+export const labCategories = michaelLabCatalog.categories;
+export const labBundles = michaelLabCatalog.bundles;
+export const labTests = michaelLabCatalog.tests.map((t) => ({
+  id: t.id,
+  code: t.code,
+  name: t.name,
+  fullName: t.fullName || t.name,
+  group: t.category,
+  category: t.category,
+  categoryId: t.categoryId,
+  unit: t.unit || '',
+  referenceRange: t.normalRange || '',
+  normalRange: t.normalRange || '',
+  specimenType: t.specimenType || '',
+  price: t.price || 0,
+  currency: t.currency || 'ETB',
+  inputType: t.inputType || 'number',
+  isQuantitative: t.isQuantitative ?? true,
+  isPanel: t.isPanel ?? false,
+  bundleKey: t.bundleKey || null,
+  bundleNote: t.bundleNote || null,
+  options: t.options || [],
+  subParameters: t.subParameters || [],
+  description: t.description || '',
+}));
 
 export const defaultLabDevices = [
   {

@@ -1,0 +1,20 @@
+{
+  "name": "st-michael-clinic",
+  "version": "1.0.0",
+  "description": "A full-stack demonstration of a clinic management system built for **Gravity Technologies**. It covers the complete patient journey across five departments — Reception, OPD (Outpatient Department), Laboratory, Procedure Room, and Prescription — all sharing a single central patient record.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abenezer1223810/st-michael-clinic.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Abenezer1223810/st-michael-clinic/issues"
+  },
+  "homepage": "https://github.com/Abenezer1223810/st-michael-clinic#readme"
+}

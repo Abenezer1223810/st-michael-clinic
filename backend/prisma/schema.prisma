@@ -389,12 +389,41 @@ model Prescription {
   @@map("prescriptions")
 }
 
+model LabCategory {
+  id           String   @id
+  slug         String   @unique
+  name         String
+  code         String
+  description  String?  @default("")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("lab_categories")
+}
+
 model LabTest {
-  id             String @id
+  id             String   @id
+  code           String?  @default("")
   name           String
+  fullName       String?  @map("full_name")
+  categoryId     String?  @map("category_id")
   group          String
-  unit           String
-  referenceRange String @map("reference_range")
+  price          Float    @default(0)
+  currency       String   @default("ETB")
+  unit           String   @default("")
+  referenceRange String   @map("reference_range")
+  specimenType   String?  @default("") @map("specimen_type")
+  inputType      String?  @default("number") @map("input_type")
+  isQuantitative Boolean? @default(true) @map("is_quantitative")
+  isPanel        Boolean? @default(false) @map("is_panel")
+  bundleKey      String?  @map("bundle_key")
+  bundleNote     String?  @map("bundle_note")
+  options        Json?    @default("[]")
+  subParameters  Json?    @default("[]") @map("sub_parameters")
+  description    String?  @default("")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("lab_tests")
 }

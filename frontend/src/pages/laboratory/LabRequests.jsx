@@ -23,7 +23,7 @@ import { Modal } from '../../components/ui/Modal';
 
 const FILTERS = [
   { key: 'all', label: 'All Requests' },
-  { key: 'READY_FOR_LAB', label: 'Paid / Ready' },
+  { key: 'pending', label: 'Doctor Orders (Pending)' },
   { key: 'SPECIMEN_COLLECTED', label: 'Sample Collected' },
   { key: 'RESULT_RECEIVED', label: 'Result Received' },
   { key: 'TECHNICIAN_VERIFIED', label: 'Verified' },
