@@ -39,6 +39,7 @@ import { LabRequestModal } from '../../components/consultation/LabRequestModal';
 import { ProcedureRequestModal } from '../../components/consultation/ProcedureRequestModal';
 import { PrescriptionModal } from '../../components/consultation/PrescriptionModal';
 import { LabDoctorCommunication } from '../../components/lab/LabDoctorCommunication';
+import { SickLeaveModal } from '../../components/consultation/SickLeaveModal';
 import { formatDateTime, formatDate } from '../../utils/format';
 import { ConsultationPrint } from '../../components/print/ConsultationPrint';
 
@@ -86,6 +87,7 @@ export default function Consultation() {
   const [labModal, setLabModal] = useState(false);
   const [procModal, setProcModal] = useState(false);
   const [rxModal, setRxModal] = useState(false);
+  const [slModal, setSlModal] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
 
   const load = () => {
@@ -855,6 +857,13 @@ export default function Consultation() {
               >
                 <Pill className="h-4 w-4" /> {t('Create Prescription')}
               </button>
+              <button
+                className="btn-primary w-full justify-start !bg-amber-600 hover:!bg-amber-700 shadow-sm"
+                onClick={() => setSlModal(true)}
+                disabled={completed}
+              >
+                <FileText className="h-4 w-4" /> {t('Sick Leave Certificate')}
+              </button>
             </div>
           </Card>
 
@@ -894,6 +903,7 @@ export default function Consultation() {
       <LabRequestModal open={labModal} onClose={() => setLabModal(false)} visitId={visitId} onRequested={load} />
       <ProcedureRequestModal open={procModal} onClose={() => setProcModal(false)} visitId={visitId} onRequested={load} />
       <PrescriptionModal open={rxModal} onClose={() => setRxModal(false)} visitId={visitId} onCreated={load} allergies={patient?.allergies} />
+      <SickLeaveModal open={slModal} onClose={() => setSlModal(false)} visit={data?.visit} consultation={data?.consultation} onCreated={load} />
 
       {printOpen && (
         <ConsultationPrint

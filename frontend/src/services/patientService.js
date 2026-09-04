@@ -6,4 +6,5 @@ export const patientService = {
   create: (data) => api.post('/patients', data),
   history: (id) => api.get(`/patients/${id}/history`),
   timeline: (id) => api.get(`/patients/${id}/timeline`),
+  renewCard: (id) => api.post(`/patients/${id}/renew-card`),
 };

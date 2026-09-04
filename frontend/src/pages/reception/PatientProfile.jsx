@@ -20,6 +20,8 @@ import {
   Eye,
   AlertTriangle,
   Clock,
+  BadgeCheck,
+  FileText,
 } from 'lucide-react';
 import { patientService } from '../../services/patientService';
 import { PatientHeader } from '../../components/PatientHeader';
@@ -33,7 +35,9 @@ import { SkeletonProfile } from '../../components/ui/Skeleton';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { LabResultPrint } from '../../components/print/LabResultPrint';
 import { PrescriptionPrint } from '../../components/print/PrescriptionPrint';
+import { SickLeavePrint } from '../../components/print/SickLeavePrint';
 import { TreatmentTimeline } from '../../components/timeline/TreatmentTimeline';
+import { useToast } from '../../context/ToastContext';
 
 const PROFILE_TABS = [
   { key: 'overview', label: 'Overview', icon: Activity },
@@ -43,6 +47,7 @@ const PROFILE_TABS = [
   { key: 'laboratory', label: 'Laboratory', icon: FlaskConical },
   { key: 'procedures', label: 'Injections & Procedures', icon: Syringe },
   { key: 'prescriptions', label: 'Prescriptions', icon: Pill },
+  { key: 'sickLeave', label: 'Sick Leave', icon: FileText },
 ];
 
 function InfoRow({ label, value }) {
@@ -61,10 +66,25 @@ const SEVERITY_STYLES = {
   'Life-threatening': 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-950/50 dark:text-rose-300',
 };
 
+function cardStatus(expiryDate) {
+  if (!expiryDate) return { expired: false, date: '', cls: 'text-slate-400' };
+  const exp = new Date(expiryDate);
+  const expired = exp.getTime() < Date.now();
+  const dd = String(exp.getDate()).padStart(2, '0');
+  const mm = String(exp.getMonth() + 1).padStart(2, '0');
+  const yyyy = exp.getFullYear();
+  return {
+    expired,
+    date: `${dd}-${mm}-${yyyy}`,
+    cls: expired ? 'text-rose-600 font-semibold' : 'text-emerald-600',
+  };
+}
+
 export default function PatientProfile() {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab') || 'overview';
   const [tab, setTab] = useState(tabParam);
@@ -75,6 +95,23 @@ export default function PatientProfile() {
   const [visitModal, setVisitModal] = useState(false);
   const [printLab, setPrintLab] = useState(null);
   const [printRx, setPrintRx] = useState(null);
+  const [printSL, setPrintSL] = useState(null);
+  const [renewing, setRenewing] = useState(false);
+  const [confirmRenew, setConfirmRenew] = useState(false);
+
+  const handleRenewCard = async () => {
+    setRenewing(true);
+    try {
+      const { message } = await patientService.renewCard(id);
+      toast.success(message || t('Patient card renewed.'));
+      setConfirmRenew(false);
+      load();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setRenewing(false);
+    }
+  };
 
   useEffect(() => {
     setTab(tabParam);
@@ -106,7 +143,7 @@ export default function PatientProfile() {
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return <SkeletonProfile />;
 
-  const { patient, visits, consultations, laboratory, procedures, prescriptions, injections = [], activeVisit, activeQueue, visitCount } = data;
+  const { patient, visits, consultations, laboratory, procedures, prescriptions, injections = [], sickLeaves = [], activeVisit, activeQueue, visitCount } = data;
 
   const tabCounts = {
     timeline: timelineData.length,
@@ -115,6 +152,7 @@ export default function PatientProfile() {
     laboratory: laboratory.length,
     procedures: procedures.length + (injections?.length || 0),
     prescriptions: prescriptions.length,
+    sickLeave: sickLeaves.length,
   };
 
   return (
@@ -134,6 +172,7 @@ export default function PatientProfile() {
           <div className="flex items-center gap-2">
             {printLab && <LabResultPrint request={printLab.request} result={printLab.result} onClose={() => setPrintLab(null)} />}
             {printRx && <PrescriptionPrint prescription={printRx} onClose={() => setPrintRx(null)} />}
+            {printSL && <SickLeavePrint sickLeave={printSL} onClose={() => setPrintSL(null)} />}
             <button className="btn-primary" onClick={() => setVisitModal(true)}>
               <CalendarPlus className="h-4 w-4" /> {t('Create Visit')}
             </button>
@@ -144,6 +183,17 @@ export default function PatientProfile() {
       <PatientHeader patient={patient} />
 
       <CreateVisitModal open={visitModal} onClose={() => setVisitModal(false)} patient={patient} onCreated={() => load()} />
+
+      <ConfirmDialog
+        open={confirmRenew}
+        onClose={() => setConfirmRenew(false)}
+        onConfirm={handleRenewCard}
+        title={t('Renew Patient Card?')}
+        message={t('Renewing will extend the patient card validity by one year from today.')}
+        confirmText={t('Yes, Renew Card')}
+        tone="brand"
+        loading={renewing}
+      />
 
       <div className="mt-6">
         <Tabs
@@ -166,7 +216,31 @@ export default function PatientProfile() {
                   <InfoRow label={t('Age')} value={patient.age !== null && patient.age !== undefined ? `${patient.age} ${t('yrs')}` : '—'} />
                   <InfoRow label={t('Phone')} value={patient.phone} />
                   <InfoRow label={t('Address')} value={patient.address} />
+                  <InfoRow label={t('Sub City')} value={patient.subCity} />
+                  <InfoRow label={t('Woreda')} value={patient.woreda} />
                   <InfoRow label={t('Registered')} value={formatDate(patient.registrationDate)} />
+                  <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-2 text-sm last:border-0 dark:border-slate-800">
+                    <span className="flex items-center gap-1.5 text-slate-500">
+                      <BadgeCheck className="h-4 w-4 text-brand-500" />
+                      {t('Card Expiry')}
+                    </span>
+                    <span className={`text-right font-medium dark:text-slate-200 ${cardStatus(patient.cardExpiryDate).cls}`}>
+                      {patient.cardExpiryDate
+                        ? `${cardStatus(patient.cardExpiryDate).expired ? t('Card Expired') + ' · ' : t('Card Valid Until')} ${cardStatus(patient.cardExpiryDate).date}`
+                        : '—'}
+                    </span>
+                  </div>
+                  <button
+                    className="btn-secondary mt-3 w-full justify-center !py-1.5 text-xs"
+                    onClick={() => setConfirmRenew(true)}
+                  >
+                    <BadgeCheck className="h-3.5 w-3.5" /> {t('Renew Card')}
+                  </button>
+                  {cardStatus(patient.cardExpiryDate).expired && (
+                    <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-center text-xs font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+                      {t('Card expired — payment required for renewal.')}
+                    </p>
+                  )}
                 </div>
               </Card>
 
@@ -536,6 +610,37 @@ export default function PatientProfile() {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {tab === 'sickLeave' && (
+          <Card>
+            <CardHeader title={t('Sick Leave Certificates')} subtitle={t('Medical certificates excusing the patient from work or school')} icon={FileText} />
+            {sickLeaves.length === 0 ? (
+              <EmptyState title={t('No sick leave certificates yet')} description={t('Sick leave certificates issued by a doctor will appear here.')} />
+            ) : (
+              <div className="space-y-3 p-5">
+                {sickLeaves.map((s) => (
+                  <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{s.certificateNumber}</span>
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                          {s.numberOfDays} {t('day(s)')}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {s.diagnosis || '—'} · {formatDate(s.fromDate)} → {formatDate(s.toDate)}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-400">{formatDateTime(s.date)} · {t('Dr.')} {s.doctor}</p>
+                    </div>
+                    <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => setPrintSL(s)}>
+                      <Eye className="h-3.5 w-3.5" /> {t('Print Certificate')}
+                    </button>
                   </div>
                 ))}
               </div>

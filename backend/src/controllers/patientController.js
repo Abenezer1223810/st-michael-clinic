@@ -32,7 +32,7 @@ export const getPatient = async (req, res) => {
 };
 
 export const createPatient = async (req, res) => {
-  const { fullName, gender, dateOfBirth, age, phone, address, emergencyContactName, emergencyContactPhone, relationshipToPatient, allergies } = req.body || {};
+  const { fullName, gender, dateOfBirth, age, phone, address, subCity, woreda, emergencyContactName, emergencyContactPhone, relationshipToPatient, allergies } = req.body || {};
   if (!fullName || !String(fullName).trim()) {
     return res.status(400).json({ message: 'Full name is required.' });
   }
@@ -58,6 +58,8 @@ export const createPatient = async (req, res) => {
       dateOfBirth: dob,
       phone,
       address,
+      subCity,
+      woreda,
       emergencyContactName,
       emergencyContactPhone,
       relationshipToPatient,
@@ -83,4 +85,12 @@ export const getPatientTimeline = async (req, res) => {
     return res.status(404).json({ message: 'Patient ID not found. Please check the ID and try again.' });
   }
   res.json(timeline);
+};
+
+export const renewCard = async (req, res) => {
+  const patient = await db.renewCard(req.params.id, req.user);
+  if (!patient) {
+    return res.status(404).json({ message: 'Patient ID not found. Please check the ID and try again.' });
+  }
+  res.json({ patient, message: 'Patient card renewed successfully.' });
 };

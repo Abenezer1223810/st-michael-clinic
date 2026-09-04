@@ -338,7 +338,7 @@ export const db = {
 
     if (query) {
       patients = patients.filter((p) =>
-        [p.id, p.patientNumber, p.fullName, p.phone].some((f) => (f || '').toLowerCase().includes(query))
+        [p.id, p.patientNumber, p.fullName, p.phone, p.subCity, p.woreda].some((f) => (f || '').toLowerCase().includes(query))
       );
     }
 
@@ -396,11 +396,18 @@ export const db = {
       dateOfBirth: data.dateOfBirth || null,
       phone: String(data.phone || '').trim(),
       address: data.address || '',
+      subCity: data.subCity || '',
+      woreda: data.woreda || '',
       emergencyContactName: String(data.emergencyContactName || '').trim(),
       emergencyContactPhone: String(data.emergencyContactPhone || '').trim(),
       relationshipToPatient: String(data.relationshipToPatient || '').trim(),
       allergies: Array.isArray(data.allergies) ? data.allergies : (data.allergies ? [data.allergies] : []),
       registrationDate: now(),
+      cardExpiryDate: data.cardExpiryDate ? new Date(data.cardExpiryDate).toISOString() : (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 15);
+        return d.toISOString();
+      })(),
       createdAt: now(),
       updatedAt: now(),
     };
@@ -416,11 +423,14 @@ export const db = {
             dateOfBirth: record.dateOfBirth,
             phone: record.phone,
             address: record.address,
+            subCity: record.subCity,
+            woreda: record.woreda,
             emergencyContactName: record.emergencyContactName,
             emergencyContactPhone: record.emergencyContactPhone,
             relationshipToPatient: record.relationshipToPatient,
             allergies: record.allergies,
             registrationDate: new Date(record.registrationDate),
+            cardExpiryDate: new Date(record.cardExpiryDate),
             createdAt: new Date(record.createdAt),
           },
         });
@@ -441,6 +451,39 @@ export const db = {
     });
 
     return { ...record, age: computeAge(record.dateOfBirth) };
+  },
+
+  async renewCard(id, user = null) {
+    const patient = inMemoryState.patients.find((p) => p.id === id || p.patientNumber === id);
+    if (!patient) return null;
+
+    const newExpiry = new Date();
+    newExpiry.setDate(newExpiry.getDate() + 15);
+    const iso = newExpiry.toISOString();
+    patient.cardExpiryDate = iso;
+    patient.updatedAt = now();
+
+    if (isPostgresConnected) {
+      try {
+        await prisma.patient.update({
+          where: { id: patient.id },
+          data: { cardExpiryDate: newExpiry, updatedAt: new Date() },
+        });
+      } catch (e) {
+        console.warn('PG renew card fallback:', e.message);
+      }
+    }
+
+    await this.createAuditLog({
+      userId: user?.id || null,
+      userName: user?.name || 'Reception',
+      action: 'RENEW_CARD',
+      entityType: 'PATIENT',
+      entityId: patient.id,
+      details: { fullName: patient.fullName, cardExpiryDate: iso },
+    });
+
+    return { ...patient, age: computeAge(patient.dateOfBirth), cardExpiryDate: iso };
   },
 
   async getPatientHistory(id) {
@@ -479,6 +522,10 @@ export const db = {
       }))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+    const sickLeaves = (inMemoryState.sickLeaves || [])
+      .filter((s) => s.patientId === patient.id)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
     const activeVisit = visits.find((v) => v.status === 'active');
     const activeQueue = activeVisit
       ? inMemoryState.queue.find((q) => q.visitId === activeVisit.id && q.status !== 'completed')
@@ -492,6 +539,7 @@ export const db = {
       procedures,
       prescriptions,
       injections: injectionOrders,
+      sickLeaves,
       activeVisit: activeVisit || null,
       activeQueue: activeQueue || null,
       visitCount: visits.length,
@@ -2450,6 +2498,95 @@ export const db = {
 
     const patient = inMemoryState.patients.find((x) => x.id === prescription.patientId);
     return { prescription: { ...prescription, patient: patient || null } };
+  },
+
+  // ---------------------------------------------------------------- SICK LEAVE CERTIFICATES
+  async listSickLeaves(patientId = null) {
+    inMemoryState.sickLeaves = inMemoryState.sickLeaves || [];
+    let sickLeaves = [...inMemoryState.sickLeaves].sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (patientId) sickLeaves = sickLeaves.filter((s) => s.patientId === patientId);
+    return sickLeaves.map((s) => {
+      const patient = inMemoryState.patients.find((x) => x.id === s.patientId);
+      return { ...s, patient: patient || null };
+    });
+  },
+
+  async getSickLeave(id) {
+    inMemoryState.sickLeaves = inMemoryState.sickLeaves || [];
+    const sickLeave = inMemoryState.sickLeaves.find((s) => s.id === id || s.certificateNumber === id);
+    if (!sickLeave) return null;
+    const patient = inMemoryState.patients.find((x) => x.id === sickLeave.patientId);
+    return { ...sickLeave, patient: patient || null };
+  },
+
+  async createSickLeave(data, user) {
+    const visit = inMemoryState.visits.find((v) => v.id === data.visitId);
+    if (!visit) return null;
+
+    const fromDate = data.fromDate || now();
+    const toDate = data.toDate || fromDate;
+    const numberOfDays = data.numberOfDays || Math.max(1, Math.floor((new Date(toDate) - new Date(fromDate)) / 86400000) + 1);
+    const certificateNumber = `SL-${Date.now().toString().slice(-6)}-${String(inMemoryState.sickLeaves?.length || 0 + 1).padStart(3, '0')}`;
+
+    const sickLeave = {
+      id: `SL-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      certificateNumber,
+      visitId: visit.id,
+      visitNumber: visit.visitNumber,
+      patientId: visit.patientId,
+      patientName: visit.patientName,
+      doctor: user?.name || 'Dr.',
+      doctorId: user?.id || null,
+      date: now(),
+      fromDate,
+      toDate,
+      numberOfDays,
+      diagnosis: data.diagnosis || '',
+      notes: data.notes || '',
+      createdAt: now(),
+      updatedAt: now(),
+    };
+
+    inMemoryState.sickLeaves = inMemoryState.sickLeaves || [];
+    inMemoryState.sickLeaves.push(sickLeave);
+
+    if (isPostgresConnected) {
+      try {
+        await prisma.sickLeave.create({
+          data: {
+            id: sickLeave.id,
+            certificateNumber: sickLeave.certificateNumber,
+            visitId: sickLeave.visitId,
+            visitNumber: sickLeave.visitNumber,
+            patientId: sickLeave.patientId,
+            patientName: sickLeave.patientName,
+            doctor: sickLeave.doctor,
+            doctorId: sickLeave.doctorId,
+            date: new Date(sickLeave.date),
+            fromDate: new Date(sickLeave.fromDate),
+            toDate: new Date(sickLeave.toDate),
+            numberOfDays: sickLeave.numberOfDays,
+            diagnosis: sickLeave.diagnosis,
+            notes: sickLeave.notes,
+            createdAt: new Date(sickLeave.createdAt),
+            updatedAt: new Date(sickLeave.updatedAt),
+          },
+        });
+      } catch (e) {
+        console.warn('PG create sick leave fallback:', e.message);
+      }
+    }
+
+    await this.createAuditLog({
+      userId: user?.id || null,
+      userName: user?.name || 'Doctor',
+      action: 'CREATE_SICK_LEAVE',
+      entityType: 'SICK_LEAVE',
+      entityId: sickLeave.id,
+      details: { certificateNumber, patientId: visit.patientId, fromDate, toDate },
+    });
+
+    return sickLeave;
   },
 
   // ---------------------------------------------------------------- INJECTION WORKFLOW & ADMINISTRATIONS

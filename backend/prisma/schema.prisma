@@ -62,11 +62,14 @@ model Patient {
   dateOfBirth           String?  @map("date_of_birth")
   phone                 String
   address               String?  @default("")
+  subCity               String?  @default("") @map("sub_city")
+  woreda                String?  @default("")
   emergencyContactName  String?  @default("") @map("emergency_contact_name")
   emergencyContactPhone String?  @default("") @map("emergency_contact_phone")
   relationshipToPatient String?  @default("") @map("relationship_to_patient")
   allergies             Json?    @default("[]")
   registrationDate      DateTime @default(now()) @map("registration_date")
+  cardExpiryDate        DateTime? @map("card_expiry_date")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
@@ -76,6 +79,7 @@ model Patient {
   labRequests   LabRequest[]
   procedures    Procedure[]
   prescriptions Prescription[]
+  sickLeaves    SickLeave[]
 
   @@index([fullName])
   @@index([phone])
@@ -99,6 +103,7 @@ model Visit {
   labRequests   LabRequest[]
   procedures    Procedure[]
   prescriptions Prescription[]
+  sickLeaves    SickLeave[]
 
   @@index([patientId])
   @@index([createdAt])
@@ -450,6 +455,32 @@ model Department {
   name String
 
   @@map("departments")
+}
+
+model SickLeave {
+  id                String    @id
+  certificateNumber String    @unique @map("certificate_number") // SL-xxxxxx
+  visitId           String    @map("visit_id")
+  visitNumber       String    @map("visit_number")
+  patientId         String    @map("patient_id")
+  patientName       String    @map("patient_name")
+  doctor            String
+  doctorId          String?   @map("doctor_id")
+  date              DateTime  @default(now())
+  fromDate          DateTime  @map("from_date")
+  toDate            DateTime  @map("to_date")
+  numberOfDays      Int       @map("number_of_days")
+  diagnosis         String?   @default("")
+  notes             String?   @default("")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  visit   Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([visitId])
+  @@index([patientId])
+  @@map("sick_leaves")
 }
 
 model RecycleBinItem {

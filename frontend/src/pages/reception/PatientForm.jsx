@@ -17,6 +17,8 @@ const empty = {
   age: '',
   phone: '',
   address: '',
+  subCity: '',
+  woreda: '',
   emergencyContactName: '',
   emergencyContactPhone: '',
   relationshipToPatient: '',
@@ -139,6 +141,8 @@ export default function PatientForm() {
         age: form.age ? Number(form.age) : null,
         phone: form.phone.trim(),
         address: form.address.trim(),
+        subCity: form.subCity.trim(),
+        woreda: form.woreda.trim(),
         emergencyContactName: form.emergencyContactName.trim(),
         emergencyContactPhone: form.emergencyContactPhone.trim(),
         relationshipToPatient: form.relationshipToPatient.trim(),
@@ -198,6 +202,14 @@ export default function PatientForm() {
 
             <Field label={t('Address')} className="sm:col-span-2">
               <input className="input" value={form.address} onChange={set('address')} placeholder={t('e.g. Bole, Addis Ababa')} />
+            </Field>
+
+            <Field label={t('Sub City')}>
+              <input className="input" value={form.subCity} onChange={set('subCity')} placeholder={t('e.g. Bole')} />
+            </Field>
+
+            <Field label={t('Woreda')}>
+              <input className="input" value={form.woreda} onChange={set('woreda')} placeholder={t('e.g. Woreda 03')} />
             </Field>
 
             <div className="sm:col-span-2">
